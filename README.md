@@ -1,1 +1,1 @@
-# plugin-azure-bill-datasource
+# plugin-azure-cost-datasource
