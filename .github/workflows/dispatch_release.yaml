@@ -1,0 +1,137 @@
+name: "[Dispatch] Release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'enter version(x.y.z)'
+        required: true
+        default: v1.0.0
+
+env:
+  TAG: ${{ github.event.inputs.tag }}
+  SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK_URL}}
+
+jobs:
+  owner_check:
+    if: github.repository_owner == 'cloudforet-io'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ${{ github.repository_owner }}
+  condition_check:
+    if: github.repository_owner == 'cloudforet-io'
+    runs-on: ubuntu-latest
+    needs: owner_check
+    steps:
+      - name: check version format
+        run: |
+          if [[ !(${{ env.TAG }} =~ ^v[0-9]\.[0-9]?[0-9]\.[0-9]?[0-9]$) ]];
+          then
+            echo "You entered an incorrect version format."
+            exit 1
+          fi
+      - name: debugging
+        run: |
+          echo "major=$(echo ${{env.TAG}} | cut -c 2- | cut -d'.' -f1)"
+          echo "minor=$(echo ${{env.TAG}} | cut -c 2- | cut -d'.' -f2)"
+          echo "patch=$(echo ${{env.TAG}} | cut -c 2- | cut -d'.' -f3)"
+      - name: notice when job fails
+        if: failure()
+        uses: 8398a7/action-slack@v3.2.0
+        with:
+          status: ${{job.status}}
+          fields: repo,workflow,job
+          author_name: Github Action Slack
+
+  update_master_branch_version_file:
+    needs: condition_check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: update version file # That is used where the master_push actions
+        run: |
+          echo ${{ env.TAG }} > src/VERSION
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "[CI/CD] release version ${{ env.TAG }}"
+      - name: push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.PAT_TOKEN }}
+          branch: master
+      - name: notice when job fails
+        if: failure()
+        uses: 8398a7/action-slack@v3.2.0
+        with:
+          status: ${{job.status}}
+          fields: repo,workflow,job
+          author_name: Github Action Slack
+
+  tagging:
+    needs: update_master_branch_version_file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: git tagging
+        run: |
+          git tag ${{ env.TAG }}
+          git push origin "${{ env.TAG }}"
+      - name: notice when job fails
+        if: failure()
+        uses: 8398a7/action-slack@v3.2.0
+        with:
+          status: ${{job.status}}
+          fields: repo,workflow,job
+          author_name: Github Action Slack
+
+  docker:
+    needs: tagging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: get version
+        run: |
+          echo "VERSION=$(echo ${{ env.TAG }} | cut -c 2-)" >> $GITHUB_ENV
+      - name: get service name
+        run: |
+          echo "SERVICE=$(echo ${{ github.repository }} | cut -d '/' -f2)" >> $GITHUB_ENV
+      - name: Build and push to pyengine
+        uses: docker/build-push-action@v1
+        with:
+          path: .
+          repository: pyengine/${{ env.SERVICE }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          tags: ${{ env.VERSION }}
+      - name: Build and push to spaceone
+        uses: docker/build-push-action@v1
+        with:
+          path: .
+          repository: spaceone/${{ env.SERVICE }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          tags: ${{ env.VERSION }}
+      - name: Notice when job fails
+        if: failure()
+        uses: 8398a7/action-slack@v3.2.0
+        with:
+          status: ${{job.status}}
+          fields: repo,workflow,job
+          author_name: Github Action Slack
+
+  notification:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack
+        if: always()
+        uses: 8398a7/action-slack@v3.2.0
+        with:
+          status: ${{job.status}}
+          fields: repo,message,commit,author,action,ref,workflow,job
+          author_name: Github Action Slack
