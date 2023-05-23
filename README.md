@@ -1,1 +1,1 @@
-# plugin-azure-cost-datasource
+# plugin-azure-cost-mgmt-cost-datasource
