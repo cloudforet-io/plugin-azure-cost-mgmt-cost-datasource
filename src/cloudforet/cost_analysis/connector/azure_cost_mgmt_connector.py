@@ -45,7 +45,8 @@ class AzureCostMgmtConnector(BaseConnector):
         billing_accounts_info = []
 
         billing_account_name = self.billing_account_name
-        billing_accounts = self.billing_client.customers.list_by_billing_account(billing_account_name=billing_account_name)
+        billing_accounts = self.billing_client.customers.list_by_billing_account(
+            billing_account_name=billing_account_name)
         for billing_account in billing_accounts:
             billing_accounts_info.append({
                 'customer_id': billing_account.name
@@ -56,66 +57,116 @@ class AzureCostMgmtConnector(BaseConnector):
     def get_cost_and_usage(self, customer_id, start, end):
         billing_account_name = self.billing_account_name
         scope = f'providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}'
-        parameters = PARAMETERS
-        parameters.update({
-            'time_period': {
-                'from': start,
-                'to': end
+        parameters = {
+            'type': TYPE,
+            'timeframe': TIMEFRAME,
+            'timePeriod': {
+                'from': start.isoformat(),
+                'to': end.isoformat()
+            },
+            'dataset': {
+                'granularity': GRANULARITY,
+                'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_COST),
+                'grouping': GROUPING
             }
-        })
+        }
         return self.cost_mgmt_client.query.usage(scope=scope, parameters=parameters)
 
-    def get_cost_and_usage_http(self, secret_data, customer_id, start, end, next_link=None):
+    def get_cost_and_usage_http(self, secret_data, customer_id, start, end):
         billing_account_name = self.billing_account_name
         api_version = '2022-10-01'
         url = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
-        if next_link:
-            url = next_link
 
-        parameters = PARAMETERS
-        parameters.update({
+        parameters = {
+            'type': TYPE,
+            'timeframe': TIMEFRAME,
             'timePeriod': {
                 'from': start.isoformat(),
                 'to': end.isoformat()
+            },
+            'dataset': {
+                'granularity': GRANULARITY,
+                'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_USD_COST),
+                'grouping': GROUPING
             }
-        })
+        }
 
-        header = self._make_request_header(secret_data)
-
-        # for request limit
-        time.sleep(2)
-        response = requests.post(url=url, headers=header, json=parameters)
-        return response.json()
+        headers = self._make_request_headers(secret_data)
+        _start_time = time.time()
+        response = requests.post(url=url, headers=headers, json=parameters)
+        response_json = response.json()
+        if response_json.get('error'):
+            response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
+                                                json=parameters, retry_count=3, method='post')
+        _end_time = time.time()
+        return response_json
 
     def get_usd_cost_and_tag_http(self, secret_data, customer_id, start, end, next_link=None):
-        billing_account_name = self.billing_account_name
-        api_version = '2022-10-01'
-        url = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
-        if next_link:
-            url = next_link
+        try:
+            billing_account_name = self.billing_account_name
+            api_version = '2022-10-01'
+            url = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
+            # if next_link:
+            #     url = next_link
 
-        parameters = PARAMETERS_WITH_USD_AND_TAG
-        parameters.update({
-            'timePeriod': {
-                'from': start.isoformat(),
-                'to': end.isoformat()
+            parameters = {
+                'type': TYPE,
+                'timeframe': TIMEFRAME,
+                'timePeriod': {
+                    'from': start.isoformat(),
+                    'to': end.isoformat()
+                },
+                'dataset': {
+                    'granularity': GRANULARITY,
+                    'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_COST),
+                    'grouping': GROUPING + [GROUPING_TAG_OPTION]
+                }
             }
-        })
 
-        header = self._make_request_header(secret_data)
+            headers = self._make_request_headers(secret_data)
+            _start_time = time.time()
+            response = requests.post(url=url, headers=headers, json=parameters)
+            response_json = response.json()
 
-        # for request limit
-        time.sleep(2)
-        response = requests.post(url=url, headers=header, json=parameters)
-        return response.json()
+            if response_json.get('error'):
+                response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
+                                                    json=parameters, retry_count=3, method='post')
+            _end_time = time.time()
+            return response_json
+        except Exception as e:
+            raise ERROR_UNKNOWN(message=f'[ERROR] get_usd_cost_and_tag_http {e}')
 
-
-    def _make_request_header(self, secret_data):
+    def _make_request_headers(self, secret_data):
         access_token = self._get_access_token(secret_data)
         return {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
+
+    def _retry_request(self, response_headers, url, headers, json, retry_count, method='post'):
+        try:
+            if retry_count == 0:
+                raise ERROR_UNKNOWN(message=f'[ERROR] _retry_request retry_count is 0')
+
+            _sleep_time = response_headers.get('x-ms-ratelimit-microsoft.costmanagement-clienttype-retry-after', 0)
+            if _sleep_time == 0:
+                _sleep_time = response_headers.get('x-ms-ratelimit-microsoft.costmanagement-entity-retry-after')
+
+            _sleep_time = int(_sleep_time) + 1
+            time.sleep(_sleep_time)
+            if method == 'post':
+                response = requests.post(url=url, headers=headers, json=json)
+            else:
+                response = requests.get(url=url, headers=headers, json=json)
+
+            response_json = response.json()
+
+            if response_json.get('error'):
+                response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
+                                                    json=json, retry_count=retry_count - 1, method=method)
+            return response_json
+        except Exception as e:
+            raise ERROR_UNKNOWN(message=f'[ERROR] _retry_request {e}')
 
     @staticmethod
     def _get_access_token(secret_data):
