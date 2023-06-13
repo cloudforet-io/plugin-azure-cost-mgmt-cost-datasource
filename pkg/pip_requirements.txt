@@ -4,5 +4,5 @@ schematics
 azure-identity
 azure-mgmt-billing
 azure-mgmt-costmanagement
-
+pandas
 

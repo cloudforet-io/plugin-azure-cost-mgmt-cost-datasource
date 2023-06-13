@@ -37,6 +37,7 @@ setup(
         'azure-identity',
         'azure-mgmt-billing',
         'azure-mgmt-costmanagement',
+        'pandas'
     ],
     zip_safe=False,
 )
