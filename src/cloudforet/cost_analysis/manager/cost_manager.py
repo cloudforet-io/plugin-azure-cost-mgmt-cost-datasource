@@ -126,7 +126,7 @@ class CostManager(BaseManager):
         return data
 
     @staticmethod
-    def _set_end_date(last_billed_at, next_link):
+    def _set_end_date(last_billed_at, next_link=None):
         if next_link:
             return last_billed_at - timedelta(seconds=1)
         else:
@@ -183,6 +183,9 @@ class CostManager(BaseManager):
 
         if 'ResourceType' in result:
             additional_info['Azure Resource Type'] = result['ResourceType']
+
+        if 'SubscriptionName' in result:
+            additional_info['Azure Subscription Name'] = result['SubscriptionName']
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Azure Instance Type'] = result['Meter']
