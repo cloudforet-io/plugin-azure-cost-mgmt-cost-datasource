@@ -130,7 +130,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
             if response_json.get('error'):
                 response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
-                                                    json=parameters, retry_count=3, method='post')
+                                                    json=parameters, retry_count=RETRY_COUNT, method='post')
             _end_time = time.time()
             return response_json
         except Exception as e:
