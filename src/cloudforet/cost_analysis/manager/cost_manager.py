@@ -25,7 +25,7 @@ class CostManager(BaseManager):
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
         response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start, end)
-        while response_stream is not None:
+        while len(response_stream.get('properties', {}).get('rows', [])) > 0:
             next_link = response_stream.get('properties', {}).get('nextLink', None)
             yield self._make_cost_data(secret_data=secret_data, results=response_stream, customer_id=customer_id
                                        , start=start, next_link=next_link)
@@ -127,14 +127,10 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _set_end_date(last_billed_at, next_link=None):
-        try:
-            if next_link:
-                return last_billed_at - timedelta(seconds=1)
-            else:
-                return last_billed_at.replace(hour=23, minute=59, second=59)
-        except Exception as e:
-            _LOGGER.error(f'[_set_end_date] set end date error: last_billed_at={last_billed_at} {e}', exc_info=True)
-            raise e
+        if next_link:
+            return last_billed_at - timedelta(seconds=1)
+        else:
+            return last_billed_at.replace(hour=23, minute=59, second=59)
 
     @staticmethod
     def _convert_tag_str_to_dict(tag: str):
