@@ -23,7 +23,7 @@ class CostManager(BaseManager):
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
-        for customer_id in tenants:
+        for idx, customer_id in enumerate(tenants):
             response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start, end)
             while len(response_stream.get('properties', {}).get('rows', [])) > 0:
                 next_link = response_stream.get('properties', {}).get('nextLink', None)
@@ -34,6 +34,7 @@ class CostManager(BaseManager):
                     response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start, end)
                 else:
                     break
+            _LOGGER.info(f"[INFO][get_data] #{idx+1} of ({len(tenants)} customer's collect is done")
         yield []
 
     def _make_cost_data(self, secret_data, results, customer_id, start, next_link=None):
