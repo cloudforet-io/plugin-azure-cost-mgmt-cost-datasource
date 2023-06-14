@@ -56,7 +56,7 @@ class CostManager(BaseManager):
 
                 data = self._make_data_info(cb_result, billed_at, customer_id)
                 costs_data.append(data)
-                last_billed_at = billed_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                last_billed_at = billed_at.replace(hour=0, minute=0, second=0)
 
             if next_link:
                 costs_data = self._remove_cost_data_start_from_last_billed_at(costs_data, last_billed_at)
@@ -126,7 +126,7 @@ class CostManager(BaseManager):
         return data
 
     @staticmethod
-    def _set_end_date(last_billed_at, next_link):
+    def _set_end_date(last_billed_at, next_link=None):
         if next_link:
             return last_billed_at - timedelta(seconds=1)
         else:
@@ -183,6 +183,9 @@ class CostManager(BaseManager):
 
         if 'ResourceType' in result:
             additional_info['Azure Resource Type'] = result['ResourceType']
+
+        if 'SubscriptionName' in result:
+            additional_info['Azure Subscription Name'] = result['SubscriptionName']
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Azure Instance Type'] = result['Meter']

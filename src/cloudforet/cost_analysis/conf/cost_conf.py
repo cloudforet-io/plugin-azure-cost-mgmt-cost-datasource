@@ -1,4 +1,4 @@
-RETRY_COUNT = 3
+RETRY_COUNT = 5
 TYPE = 'ActualCost'
 TIMEFRAME = 'Custom'
 GRANULARITY = 'Daily'
@@ -23,11 +23,29 @@ GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
 
 REGION_MAP = {
     'global': 'global',
+    'ap east': 'eastasia',
     'ca central': 'canadacentral',
+    'ca east': 'canadaeast',
     'east us': 'eastus',
     'east us2': 'eastus2',
+    'eu west': 'westeurope',
     'kr central': 'koeracentral',
     'kr south': 'koreasouth',
     'jp east': 'japaneast',
     'jp west': 'japanwest',
+    'us east': 'eastus',
+    'us east 2': 'eastus2',
+    'us west': 'westus',
+    'us west 2': 'westus2stage',
+    'us central': 'centralus',
+    'us north central': 'northcentralus',
+    'ap southeast': 'southeastasia',
+    'za north': 'southafricanorth',
+    'uk south': 'uksouth',
+    'br south': 'brazilsouth',
+    'in west': 'westindia',
+    'in central': 'centralindia',
+    'de west central': 'germanywestcentral',
+    'us south central': 'southcentralus',
+
 }
