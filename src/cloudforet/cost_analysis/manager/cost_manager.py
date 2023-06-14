@@ -130,7 +130,7 @@ class CostManager(BaseManager):
         if next_link:
             return last_billed_at - timedelta(seconds=1)
         else:
-            return last_billed_at.replace(hour=23, minute=59, second=59, microsecond=0)
+            return last_billed_at.replace(hour=23, minute=59, second=59)
 
     @staticmethod
     def _convert_tag_str_to_dict(tag: str):
