@@ -97,7 +97,7 @@ class AzureCostMgmtConnector(BaseConnector):
         response_json = response.json()
         if response_json.get('error'):
             response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
-                                                json=parameters, retry_count=3, method='post')
+                                                json=parameters, retry_count=RETRY_COUNT, method='post')
         _end_time = time.time()
         return response_json
 
@@ -148,11 +148,7 @@ class AzureCostMgmtConnector(BaseConnector):
             if retry_count == 0:
                 raise ERROR_UNKNOWN(message=f'[ERROR] _retry_request retry_count is 0')
 
-            _sleep_time = response_headers.get('x-ms-ratelimit-microsoft.costmanagement-clienttype-retry-after', 0)
-            if _sleep_time == 0:
-                _sleep_time = response_headers.get('x-ms-ratelimit-microsoft.costmanagement-entity-retry-after')
-
-            _sleep_time = int(_sleep_time) + 1
+            _sleep_time = self._get_sleep_time(response_headers)
             time.sleep(_sleep_time)
             if method == 'post':
                 response = requests.post(url=url, headers=headers, json=json)
@@ -166,8 +162,16 @@ class AzureCostMgmtConnector(BaseConnector):
                                                     json=json, retry_count=retry_count - 1, method=method)
             return response_json
         except Exception as e:
-            raise ERROR_UNKNOWN(message=f'[ERROR] _retry_request {e}')
+            _LOGGER.error(f'[ERROR] _retry_request {e}')
+            raise e
+    @staticmethod
+    def _get_sleep_time(response_headers):
+        _sleep_time = response_headers.get('x-ms-ratelimit-microsoft.costmanagement-clienttype-retry-after') or \
+                      response_headers.get('x-ms-ratelimit-microsoft.costmanagement-entity-retry-after', '0')
+        if isinstance(_sleep_time, str) is False:
+            _sleep_time = 3
 
+        return int(_sleep_time) + 1
     @staticmethod
     def _get_access_token(secret_data):
         tenant_id = secret_data.get('tenant_id', '')

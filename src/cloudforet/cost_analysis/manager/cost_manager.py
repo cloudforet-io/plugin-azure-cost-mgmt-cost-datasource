@@ -56,7 +56,7 @@ class CostManager(BaseManager):
 
                 data = self._make_data_info(cb_result, billed_at, customer_id)
                 costs_data.append(data)
-                last_billed_at = billed_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                last_billed_at = billed_at.replace(hour=0, minute=0, second=0)
 
             if next_link:
                 costs_data = self._remove_cost_data_start_from_last_billed_at(costs_data, last_billed_at)
