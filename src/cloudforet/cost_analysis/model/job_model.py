@@ -7,7 +7,7 @@ __all__ = ['Tasks']
 
 class TaskOptions(Model):
     start = StringType(required=True)
-    account_id = StringType(required=True)
+    tenants = ListType(StringType, required=True)
 
 
 class Task(Model):
