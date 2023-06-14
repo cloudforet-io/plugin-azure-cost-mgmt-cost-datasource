@@ -1,4 +1,4 @@
-RETRY_COUNT = 5
+RETRY_COUNT = 4
 TYPE = 'ActualCost'
 TIMEFRAME = 'Custom'
 GRANULARITY = 'Daily'
@@ -29,7 +29,7 @@ REGION_MAP = {
     'east us': 'eastus',
     'east us2': 'eastus2',
     'eu west': 'westeurope',
-    'kr central': 'koeracentral',
+    'kr central': 'koreacentral',
     'kr south': 'koreasouth',
     'jp east': 'japaneast',
     'jp west': 'japanwest',

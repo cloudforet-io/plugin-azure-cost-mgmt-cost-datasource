@@ -127,10 +127,14 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _set_end_date(last_billed_at, next_link=None):
-        if next_link:
-            return last_billed_at - timedelta(seconds=1)
-        else:
-            return last_billed_at.replace(hour=23, minute=59, second=59)
+        try:
+            if next_link:
+                return last_billed_at - timedelta(seconds=1)
+            else:
+                return last_billed_at.replace(hour=23, minute=59, second=59)
+        except Exception as e:
+            _LOGGER.error(f'[_set_end_date] set end date error: last_billed_at={last_billed_at} {e}', exc_info=True)
+            raise e
 
     @staticmethod
     def _convert_tag_str_to_dict(tag: str):
