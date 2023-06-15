@@ -23,29 +23,36 @@ class CostManager(BaseManager):
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
-        for idx, customer_id in enumerate(tenants):
-            response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start, end)
-            while len(response_stream.get('properties', {}).get('rows', [])) > 0:
-                next_link = response_stream.get('properties', {}).get('nextLink', None)
-                yield self._make_cost_data(secret_data=secret_data, results=response_stream, customer_id=customer_id
-                                           , start=start, next_link=next_link)
+        monthly_time_period = self._make_monthly_time_period(start, end)
 
-                if next_link:
-                    response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start, end)
-                else:
-                    break
-            _LOGGER.info(f"[INFO][get_data] #{idx+1} of ({len(tenants)} customer's collect is done")
+        for idx, time_period in enumerate(monthly_time_period):
+            _start = self._convert_date_format_to_utc(time_period['start'])
+            _end = self._convert_date_format_to_utc(time_period['end'])
+
+            print(f'[INFO] {len(tenants)} tenants data is collecting... {_start} ~ {_end} ')
+            for customer_id in enumerate(tenants):
+                response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, _start, _end)
+
+                while len(response_stream.get('properties', {}).get('rows', [])) > 0:
+                    next_link = response_stream.get('properties', {}).get('nextLink', None)
+                    yield self._make_cost_data(secret_data=secret_data, results=response_stream, customer_id=customer_id
+                                               , start=_start, end=_end, next_link=next_link)
+
+                    if next_link:
+                        response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start,
+                                                                                            end)
+                    else:
+                        break
+                print(f"[INFO][get_data] #{idx + 1} of {len(tenants)} customer's collect is done")
         yield []
 
-    def _make_cost_data(self, secret_data, results, customer_id, start, next_link=None):
+    def _make_cost_data(self, secret_data, results, customer_id, start, end, next_link=None):
         costs_data = []
-
         try:
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
                                                                            results.get('properties').get('columns'))
             for cb_result in combined_results:
-
-                billed_at = self._set_billed_at(cb_result.get('UsageDate'))
+                billed_at = self._set_billed_at(cb_result.get('UsageDate', end))
                 if not billed_at:
                     continue
 
@@ -94,12 +101,12 @@ class CostManager(BaseManager):
         additional_info = self._get_additional_info(result, customer_id)
 
         data = {
-            'cost': cost,
-            'usd_cost': usd_cost,
+            'cost': usd_cost,
+            # 'usd_cost': usd_cost,
             'currency': currency,
             'usage_quantity': usage_quantity,
             'usage_type': usage_type,
-            'usage_unit': usage_unit,
+            # 'usage_unit': usage_unit,
             'provider': 'azure',
             'region_code': REGION_MAP.get(region_code, region_code),
             'account': subscription_id,
@@ -148,10 +155,16 @@ class CostManager(BaseManager):
         return format(float(num_str), 'f')
 
     @staticmethod
-    def _set_billed_at(start: int):
+    def _set_billed_at(start):
         try:
-            start = str(start)
-            formatted_start = f"{start[:4]}-{start[4:6]}-{start[6:]}"
+            if isinstance(start, int):
+                start = str(start)
+                formatted_start = f"{start[:4]}-{start[4:6]}-{start[6:]}"
+            elif isinstance(start, datetime):
+                return start
+            else:
+                formatted_start = start
+
             return datetime.strptime(formatted_start, "%Y-%m-%d")
         except Exception as e:
             _LOGGER.error(f'[_set_billed_at] set billed_at error: {e}', exc_info=True)
@@ -204,6 +217,35 @@ class CostManager(BaseManager):
         if 'start' not in task_options:
             raise ERROR_REQUIRED_PARAMETER(key='task_options.start')
 
+    @staticmethod
+    def _make_monthly_time_period(start_date, end_date):
+        monthly_time_period = []
+        current_date = datetime.utcnow().strftime('%Y-%m-%d')
+
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+        start_year = start_date.year
+        start_month = start_date.month
+        end_year = end_date.year
+        end_month = end_date.month
+
+        for year in range(start_year, end_year + 1):
+            start = start_month if year == start_year else 1
+            end = end_month if year == end_year else 12
+
+            for month in range(start, end + 1):
+                first_date_of_month = datetime(year, month, 1).strftime('%Y-%m-%d')
+                if month == 12:
+                    last_date_of_month = (datetime(year + 1, 1, 1) - timedelta(days=1)).strftime('%Y-%m-%d')
+                else:
+                    last_date_of_month = (datetime(year, month + 1, 1) - timedelta(days=1)).strftime('%Y-%m-%d')
+                if last_date_of_month > current_date:
+                    last_date_of_month = current_date
+                monthly_time_period.append({'start': first_date_of_month, 'end': last_date_of_month})
+        return monthly_time_period
 
     # def _make_cost_data(self, secret_data, results, customer_id, start, next_link=None):
     #     costs_data = []

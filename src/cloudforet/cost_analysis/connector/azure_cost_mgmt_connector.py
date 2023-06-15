@@ -95,7 +95,7 @@ class AzureCostMgmtConnector(BaseConnector):
         response = requests.post(url=url, headers=headers, json=parameters)
         response_json = response.json()
         if response_json.get('error'):
-            response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
+            response_json = self._retry_request(response=response, url=url, headers=headers,
                                                 json=parameters, retry_count=RETRY_COUNT, method='post')
         return response_json
 
@@ -115,7 +115,7 @@ class AzureCostMgmtConnector(BaseConnector):
                     'to': end.isoformat()
                 },
                 'dataset': {
-                    'granularity': GRANULARITY,
+                    # 'granularity': GRANULARITY,
                     'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_USD_COST),
                     'grouping': GROUPING  # + [GROUPING_TAG_OPTION]
                 }
@@ -126,7 +126,7 @@ class AzureCostMgmtConnector(BaseConnector):
             response_json = response.json()
 
             if response_json.get('error'):
-                response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
+                response_json = self._retry_request(response=response, url=url, headers=headers,
                                                     json=parameters, retry_count=RETRY_COUNT, method='post')
             return response_json
         except Exception as e:
@@ -139,26 +139,26 @@ class AzureCostMgmtConnector(BaseConnector):
             'Content-Type': 'application/json'
         }
 
-    def _retry_request(self, response_headers, url, headers, json, retry_count, method='post'):
+    def _retry_request(self, response, url, headers, json, retry_count, method='post'):
         try:
             if retry_count == 0:
-                raise ERROR_UNKNOWN(message=f'[ERROR] _retry_request retry_count is 0')
+                raise ERROR_UNKNOWN(message=f'[ERROR] retry_request failed {response.json()}')
 
-            _sleep_time = self._get_sleep_time(response_headers)
+            _sleep_time = self._get_sleep_time(response.headers)
             time.sleep(_sleep_time)
+
             if method == 'post':
                 response = requests.post(url=url, headers=headers, json=json)
             else:
                 response = requests.get(url=url, headers=headers, json=json)
-
             response_json = response.json()
 
             if response_json.get('error'):
-                response_json = self._retry_request(response_headers=response.headers, url=url, headers=headers,
+                response_json = self._retry_request(response=response, url=url, headers=headers,
                                                     json=json, retry_count=retry_count - 1, method=method)
             return response_json
         except Exception as e:
-            _LOGGER.error(f'[ERROR] _retry_request {e}')
+            _LOGGER.error(f'[ERROR] retry_request failed {e}')
             raise e
 
     @staticmethod
