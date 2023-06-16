@@ -25,12 +25,12 @@ class CostManager(BaseManager):
 
         monthly_time_period = self._make_monthly_time_period(start, end)
 
-        for idx, time_period in enumerate(monthly_time_period):
+        for time_period in monthly_time_period:
             _start = self._convert_date_format_to_utc(time_period['start'])
             _end = self._convert_date_format_to_utc(time_period['end'])
 
             print(f'[INFO] {len(tenants)} tenants data is collecting... {_start} ~ {_end} ')
-            for customer_id in enumerate(tenants):
+            for idx, customer_id in enumerate(tenants):
                 response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, _start, _end)
 
                 while len(response_stream.get('properties', {}).get('rows', [])) > 0:
