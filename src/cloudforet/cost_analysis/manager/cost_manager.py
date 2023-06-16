@@ -40,7 +40,7 @@ class CostManager(BaseManager):
 
                     if next_link:
                         response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, _start,
-                                                                                            _end)
+                                                                                            _end, next_link)
                     else:
                         break
                 print(f"[INFO][get_data] #{idx + 1} of {len(tenants)} customer's collect is done")
