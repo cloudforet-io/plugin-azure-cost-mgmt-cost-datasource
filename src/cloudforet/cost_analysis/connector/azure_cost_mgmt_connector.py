@@ -77,20 +77,8 @@ class AzureCostMgmtConnector(BaseConnector):
         api_version = '2022-10-01'
         url = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
 
-        parameters = {
-            'type': TYPE,
-            'timeframe': TIMEFRAME,
-            'timePeriod': {
-                'from': start.isoformat(),
-                'to': end.isoformat()
-            },
-            'dataset': {
-                'granularity': GRANULARITY,
-                'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_COST),
-                'grouping': GROUPING
-            }
-        }
 
+        parameters = self._make_parameters(start, end)
         headers = self._make_request_headers(secret_data)
         response = requests.post(url=url, headers=headers, json=parameters)
         response_json = response.json()
@@ -104,23 +92,15 @@ class AzureCostMgmtConnector(BaseConnector):
             billing_account_name = self.billing_account_name
             api_version = '2022-10-01'
             url = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
+
             if next_link:
                 url = next_link
 
-            parameters = {
-                'type': TYPE,
-                'timeframe': TIMEFRAME,
-                'timePeriod': {
-                    'from': start.isoformat(),
-                    'to': end.isoformat()
-                },
-                'dataset': {
-                    # 'granularity': GRANULARITY,
-                    'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_USD_COST),
-                    'grouping': GROUPING  # + [GROUPING_TAG_OPTION]
-                }
+            options = {
+                'aggregation': 'usd_cost',
             }
 
+            parameters = self._make_parameters(start, end, options)
             headers = self._make_request_headers(secret_data)
             response = requests.post(url=url, headers=headers, json=parameters)
             response_json = response.json()
@@ -162,6 +142,38 @@ class AzureCostMgmtConnector(BaseConnector):
             raise e
 
     @staticmethod
+    def _make_parameters(start, end, options=None):
+        parameters = {}
+        aggregation = AGGREGATION_USAGE_QUANTITY
+        grouping = GROUPING
+
+        if options.get('aggregation') == 'usd_cost':
+            aggregation = dict(aggregation, **AGGREGATION_USD_COST)
+        else:
+            aggregation = dict(aggregation, **AGGREGATION_COST)
+
+        if options.get('grouping') == 'tag':
+            grouping = grouping + [GROUPING_TAG_OPTION]
+
+        if options.get('granularity'):
+            parameters.update({'dataset': {'granularity': options.get('granularity')}})
+
+        parameters.update({
+            'type': TYPE,
+            'timeframe': TIMEFRAME,
+            'timePeriod': {
+                'from': start.isoformat(),
+                'to': end.isoformat()
+            },
+            'dataset': {
+                'aggregation': aggregation,
+                'grouping': grouping
+            }
+        })
+
+        return parameters
+
+    @staticmethod
     def _get_sleep_time(response_headers):
         sleep_time = 0
         for key, value in response_headers.items():
@@ -199,7 +211,6 @@ class AzureCostMgmtConnector(BaseConnector):
 
         if 'client_secret' not in secret_data:
             raise ERROR_REQUIRED_PARAMETER(key='secret_data.client_secret')
-
 
     # def _make_cost_data(self, secret_data, results, customer_id, start, next_link=None):
     #     costs_data = []
