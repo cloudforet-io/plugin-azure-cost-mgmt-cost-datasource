@@ -84,7 +84,7 @@ class CostManager(BaseManager):
         usage_quantity = self._convert_str_to_float_format(result.get('UsageQuantity', 0))
         usage_type = result.get('Meter', '')
         usage_unit = result.get('UnitOfMeasure', '')
-        subscription_id = result.get('SubscriptionId', '')
+        subscription_id = result.get('SubscriptionId', 'Shared')
         region_code = result.get('ResourceLocation', '')
         product = result.get('MeterCategory', '')
         resource = result.get('ResourceId', '')
@@ -138,26 +138,29 @@ class CostManager(BaseManager):
         if customer_id:
             additional_info = {'Azure Tenant ID': customer_id}
 
-        if result.get('ResourceLocation') != '':
+        if result.get('ResourceLocation') != '' and result.get('ResourceLocation'):
             additional_info['Azure Resource Group'] = result['ResourceGroup']
 
-        if result.get('ResourceType') != '':
+        if result.get('ResourceType') != '' and result.get('ResourceType'):
             additional_info['Azure Resource Type'] = result['ResourceType']
 
-        if result.get('SubscriptionName') != '':
+        if result.get('SubscriptionName') != '' and result.get('SubscriptionName'):
             additional_info['Azure Subscription Name'] = result['SubscriptionName']
 
-        if result.get('PricingModel') != '':
+        if result.get('PricingModel') != '' and result.get('PricingModel'):
             additional_info['Azure Pricing Model'] = result['PricingModel']
 
-        if result.get('BenefitName') != '':
+        if result.get('BenefitName') != '' and result.get('BenefitName'):
             benefit_name = result['BenefitName']
             additional_info['Azure Benefit Name'] = benefit_name
+
             if result.get('PricingModel') == 'Reservation' and result['MeterCategory'] == '':
                 result['MeterCategory'] = self._set_product_from_benefit_name(benefit_name)
 
-        if result.get('BenefitID') != '':
-            additional_info['Azure Benefit ID'] = result.get('BenefitID')
+        if result.get('MeterSubcategory') != '' and result.get('MeterSubcategory'):
+            additional_info['Azure Meter SubCategory'] = result.get('MeterSubcategory')
+            if result.get('PricingModel') == 'OnDemand' and result.get('MeterCategory') == '':
+                result['MeterCategory'] = result.get('MeterSubCategory')
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Azure Instance Type'] = result['Meter']
@@ -166,15 +169,22 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _set_product_from_benefit_name(benefit_name):
-        _product_name = 'Reservation'
+        _product_name_format = 'Reserved {_product_name}'
+        product_name = _product_name_format.format(_product_name=benefit_name)
+
         try:
             if 'VM' in benefit_name.upper():
-                _product_name = 'VM_RI'
+                product_name = _product_name_format.format(_product_name='VM Instances')
+            elif 'REDIS' in benefit_name.upper():
+                product_name = _product_name_format.format(_product_name='Redis Cache')
+            elif 'DISK' in benefit_name.upper():
+                product_name = _product_name_format.format(_product_name='Disk')
             elif len(benefit_name.split("_")) > 1:
-                _product_name = f'{benefit_name.split("_")[0]}_RI'
-            return _product_name
+                product_name = _product_name_format.format(_product_name=benefit_name.split("_")[0])
+
+            return product_name
         except Exception as e:
-            return _product_name
+            return product_name
 
     @staticmethod
     def _remove_cost_data_start_from_last_billed_at(costs_data, last_billed_at):

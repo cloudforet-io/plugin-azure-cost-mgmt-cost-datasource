@@ -17,9 +17,9 @@ GROUPING = [
     {'type': 'Dimension', 'name': 'MeterCategory'},
     {'type': 'Dimension', 'name': 'Meter'},
     {'type': 'Dimension', 'name': 'UnitOfMeasure'},
-    {'type': 'Dimension', 'name': 'BenefitId'},
     {'type': 'Dimension', 'name': 'BenefitName'},
-    {'type': 'Dimension', 'name': 'PricingModel'}
+    {'type': 'Dimension', 'name': 'PricingModel'},
+    {'type': 'Dimension', 'name': 'MeterSubcategory'}
 ]
 
 GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
