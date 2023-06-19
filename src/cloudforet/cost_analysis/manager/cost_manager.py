@@ -90,6 +90,9 @@ class CostManager(BaseManager):
         resource = result.get('ResourceId', '')
         tags = {}  # self._convert_tag_str_to_dict(result.get('Tag'))
 
+        if subscription_id == '':
+            subscription_id = 'Shared'
+
         data = {
             'cost': usd_cost,
             # 'usd_cost': usd_cost,
