@@ -77,6 +77,7 @@ class CostManager(BaseManager):
             raise e
 
     def _make_data_info(self, result, billed_at, customer_id=None):
+        additional_info = self._get_additional_info(result, customer_id)
         cost = self._convert_str_to_float_format(result.get('Cost', 0))
         usd_cost = self._convert_str_to_float_format(result.get('CostUSD', 0))
         currency = 'USD'
@@ -88,7 +89,6 @@ class CostManager(BaseManager):
         product = result.get('MeterCategory', '')
         resource = result.get('ResourceId', '')
         tags = {}  # self._convert_tag_str_to_dict(result.get('Tag'))
-        additional_info = self._get_additional_info(result, customer_id)
 
         data = {
             'cost': usd_cost,
@@ -131,6 +131,51 @@ class CostManager(BaseManager):
             tag_dict[tag] = ''
         return tag_dict
 
+    def _get_additional_info(self, result, customer_id):
+        additional_info = {}
+        meter_category = result.get('MeterCategory', '')
+
+        if customer_id:
+            additional_info = {'Azure Tenant ID': customer_id}
+
+        if result.get('ResourceLocation') != '':
+            additional_info['Azure Resource Group'] = result['ResourceGroup']
+
+        if result.get('ResourceType') != '':
+            additional_info['Azure Resource Type'] = result['ResourceType']
+
+        if result.get('SubscriptionName') != '':
+            additional_info['Azure Subscription Name'] = result['SubscriptionName']
+
+        if result.get('PricingModel') != '':
+            additional_info['Azure Pricing Model'] = result['PricingModel']
+
+        if result.get('BenefitName') != '':
+            benefit_name = result['BenefitName']
+            additional_info['Azure Benefit Name'] = benefit_name
+            if result.get('PricingModel') == 'Reservation' and result['MeterCategory'] == '':
+                result['MeterCategory'] = self._set_product_from_benefit_name(benefit_name)
+
+        if result.get('BenefitID') != '':
+            additional_info['Azure Benefit ID'] = result.get('BenefitID')
+
+        if meter_category == 'Virtual Machines' and 'Meter' in result:
+            additional_info['Azure Instance Type'] = result['Meter']
+
+        return additional_info
+
+    @staticmethod
+    def _set_product_from_benefit_name(benefit_name):
+        _product_name = 'Reservation'
+        try:
+            if 'VM' in benefit_name.upper():
+                _product_name = 'VM_RI'
+            elif len(benefit_name.split("_")) > 1:
+                _product_name = f'{benefit_name.split("_")[0]}_RI'
+            return _product_name
+        except Exception as e:
+            return _product_name
+
     @staticmethod
     def _remove_cost_data_start_from_last_billed_at(costs_data, last_billed_at):
         return [cost_data for cost_data in costs_data if cost_data.get('billed_at') < last_billed_at]
@@ -159,34 +204,6 @@ class CostManager(BaseManager):
         except Exception as e:
             _LOGGER.error(f'[_set_billed_at] set billed_at error: {e}', exc_info=True)
             return None
-
-    @staticmethod
-    def _get_additional_info(result, customer_id):
-        additional_info = {}
-        meter_category = result.get('MeterCategory', '')
-
-        if customer_id:
-            additional_info = {'Azure Tenant ID': customer_id}
-
-        if result.get('ResourceLocation') != '':
-            additional_info['Azure Resource Group'] = result['ResourceGroup']
-
-        if result.get('ResourceType') != '':
-            additional_info['Azure Resource Type'] = result['ResourceType']
-
-        if result.get('SubscriptionName') != '':
-            additional_info['Azure Subscription Name'] = result['SubscriptionName']
-
-        if result.get('BenefitName') != '':
-            additional_info['Azure Benefit Name'] = result['BenefitName']
-
-        if result.get('PricingModel') != '':
-            additional_info['Azure Pricing Model'] = result['PricingModel']
-
-        if meter_category == 'Virtual Machines' and 'Meter' in result:
-            additional_info['Azure Instance Type'] = result['Meter']
-
-        return additional_info
 
     @staticmethod
     def _check_prev_and_current_result(prev_result, cur_result):
