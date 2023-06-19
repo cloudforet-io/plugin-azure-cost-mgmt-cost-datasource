@@ -84,7 +84,7 @@ class CostManager(BaseManager):
         usage_quantity = self._convert_str_to_float_format(result.get('UsageQuantity', 0))
         usage_type = result.get('Meter', '')
         usage_unit = result.get('UnitOfMeasure', '')
-        subscription_id = result.get('SubscriptionId', 'Shared')
+        subscription_id = result.get('SubscriptionId', '')
         region_code = result.get('ResourceLocation', '')
         product = result.get('MeterCategory', '')
         resource = result.get('ResourceId', '')
@@ -160,7 +160,7 @@ class CostManager(BaseManager):
         if result.get('MeterSubcategory') != '' and result.get('MeterSubcategory'):
             additional_info['Azure Meter SubCategory'] = result.get('MeterSubcategory')
             if result.get('PricingModel') == 'OnDemand' and result.get('MeterCategory') == '':
-                result['MeterCategory'] = result.get('MeterSubCategory')
+                result['MeterCategory'] = result.get('MeterSubcategory')
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Azure Instance Type'] = result['Meter']
