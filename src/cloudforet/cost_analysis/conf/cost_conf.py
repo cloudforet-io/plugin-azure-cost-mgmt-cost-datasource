@@ -17,6 +17,9 @@ GROUPING = [
     {'type': 'Dimension', 'name': 'MeterCategory'},
     {'type': 'Dimension', 'name': 'Meter'},
     {'type': 'Dimension', 'name': 'UnitOfMeasure'},
+    {'type': 'Dimension', 'name': 'BenefitId'},
+    {'type': 'Dimension', 'name': 'BenefitName'},
+    {'type': 'Dimension', 'name': 'PricingModel'}
 ]
 
 GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
@@ -47,5 +50,4 @@ REGION_MAP = {
     'in central': 'centralindia',
     'de west central': 'germanywestcentral',
     'us south central': 'southcentralus',
-
 }

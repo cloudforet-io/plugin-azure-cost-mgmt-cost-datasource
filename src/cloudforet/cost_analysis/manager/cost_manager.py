@@ -29,24 +29,14 @@ class CostManager(BaseManager):
             _start = self._convert_date_format_to_utc(time_period['start'])
             _end = self._convert_date_format_to_utc(time_period['end'])
 
-            print(f'[INFO] {len(tenants)} tenants data is collecting... {_start} ~ {_end} ')
+            print(f'{datetime.utcnow()} [INFO] {len(tenants)} tenants data is collecting... {_start} ~ {_end} ')
             for idx, customer_id in enumerate(tenants):
-                response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, _start, _end)
-
-                while len(response_stream.get('properties', {}).get('rows', [])) > 0:
-                    next_link = response_stream.get('properties', {}).get('nextLink', None)
-                    yield self._make_cost_data(secret_data=secret_data, results=response_stream, customer_id=customer_id
-                                               , start=_start, end=_end, next_link=next_link)
-
-                    if next_link:
-                        response_stream = self.azure_cm_connector.get_usd_cost_and_tag_http(secret_data, customer_id, start,
-                                                                                            end)
-                    else:
-                        break
-                print(f"[INFO][get_data] #{idx + 1} of {len(tenants)} customer's collect is done")
+                for response_stream in self.azure_cm_connector.query_http(secret_data, customer_id, _start, _end):
+                    yield self._make_cost_data(results=response_stream, customer_id=customer_id, end=_end)
+                print(f"{datetime.utcnow()} [INFO][get_data] #{idx + 1} of {len(tenants)} customer's collect is done")
         yield []
 
-    def _make_cost_data(self, secret_data, results, customer_id, start, end, next_link=None):
+    def _make_cost_data(self, results, customer_id, end):
         costs_data = []
         try:
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
@@ -178,14 +168,20 @@ class CostManager(BaseManager):
         if customer_id:
             additional_info = {'Azure Tenant ID': customer_id}
 
-        if 'ResourceGroup' in result:
+        if result.get('ResourceLocation') != '':
             additional_info['Azure Resource Group'] = result['ResourceGroup']
 
-        if 'ResourceType' in result:
+        if result.get('ResourceType') != '':
             additional_info['Azure Resource Type'] = result['ResourceType']
 
-        if 'SubscriptionName' in result:
+        if result.get('SubscriptionName') != '':
             additional_info['Azure Subscription Name'] = result['SubscriptionName']
+
+        if result.get('BenefitName') != '':
+            additional_info['Azure Benefit Name'] = result['BenefitName']
+
+        if result.get('PricingModel') != '':
+            additional_info['Azure Pricing Model'] = result['PricingModel']
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Azure Instance Type'] = result['Meter']
@@ -246,37 +242,3 @@ class CostManager(BaseManager):
                     last_date_of_month = current_date
                 monthly_time_period.append({'start': first_date_of_month, 'end': last_date_of_month})
         return monthly_time_period
-
-    # def _make_cost_data(self, secret_data, results, customer_id, start, next_link=None):
-    #     costs_data = []
-    #     last_billed_at = ''
-    #
-    #     try:
-    #         combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
-    #                                                                        results.get('properties').get('columns'))
-    #         for idx, cb_result in enumerate(combined_results):
-    #             if idx > 0 and cb_result.get('Tag') != '':
-    #                 if self._check_prev_and_current_result(combined_results[idx-1], cb_result):
-    #                     costs_data[-1]['tags'].update(self._convert_tag_str_to_dict(cb_result.get('Tag')))
-    #                     continue
-    #
-    #             billed_at = self._set_billed_at(cb_result.get('UsageDate'))
-    #             if not billed_at:
-    #                 continue
-    #
-    #             data = self._make_data_info(cb_result, billed_at, customer_id)
-    #             costs_data.append(data)
-    #             last_billed_at = billed_at.replace(hour=0, minute=0, second=0)
-    #
-    #         if next_link:
-    #             costs_data = self._remove_cost_data_start_from_last_billed_at(costs_data, last_billed_at)
-    #
-    #         _end = self._set_end_date(last_billed_at, next_link)
-    #         response_stream = self.azure_cm_connector.get_cost_and_usage_http(secret_data, customer_id, start, _end)
-    #         costs_data = self._combine_make_data(costs_data=costs_data, results=response_stream)
-    #
-    #     except Exception as e:
-    #         _LOGGER.error(f'[_make_cost_data] make data error: {e}', exc_info=True)
-    #         raise e
-    #
-    #     return costs_data
