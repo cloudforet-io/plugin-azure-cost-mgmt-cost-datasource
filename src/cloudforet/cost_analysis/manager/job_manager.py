@@ -16,7 +16,8 @@ class JobManager(BaseManager):
         self.azure_cm_connector: AzureCostMgmtConnector = self.locator.get_connector('AzureCostMgmtConnector')
 
     def get_tasks(self, options, secret_data, schema, start, last_synchronized_at, domain_id):
-        tenants = []
+        tasks = []
+        changed = []
 
         start_time = self._get_start_time(start, last_synchronized_at)
         start_date = start_time.strftime('%Y-%m-%d')
@@ -25,10 +26,8 @@ class JobManager(BaseManager):
         self.azure_cm_connector.create_session(options, secret_data, schema)
 
         for billing_account in self.azure_cm_connector.list_billing_accounts():
-            tenants.append(billing_account['customer_id'])
-
-        tasks = [{'task_options': {'tenants': tenants, 'start': start_date}}]
-        changed = [{'start': changed_time}]
+            tasks.append({'task_options': {'tenant_id': billing_account.get('customer_id'), 'start': start_date}})
+            changed.append({'start': changed_time})
 
         tasks = Tasks({'tasks': tasks, 'changed': changed})
         tasks.validate()

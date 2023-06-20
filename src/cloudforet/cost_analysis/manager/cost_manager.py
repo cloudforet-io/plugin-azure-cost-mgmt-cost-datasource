@@ -19,7 +19,7 @@ class CostManager(BaseManager):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
-        tenants = task_options['tenants']
+        tenant_id = task_options['tenant_id']
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
@@ -29,11 +29,10 @@ class CostManager(BaseManager):
             _start = self._convert_date_format_to_utc(time_period['start'])
             _end = self._convert_date_format_to_utc(time_period['end'])
 
-            print(f'{datetime.utcnow()} [INFO] {len(tenants)} tenants data is collecting... {_start} ~ {_end} ')
-            for idx, customer_id in enumerate(tenants):
-                for response_stream in self.azure_cm_connector.query_http(secret_data, customer_id, _start, _end):
-                    yield self._make_cost_data(results=response_stream, customer_id=customer_id, end=_end)
-                print(f"{datetime.utcnow()} [INFO][get_data] #{idx + 1} of {len(tenants)} customer's collect is done")
+            print(f'{datetime.utcnow()} [INFO] tenant data is collecting... {_start} ~ {_end} ')
+            for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end):
+                yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
+            print(f"{datetime.utcnow()} [INFO][get_data] customer's collect is done")
         yield []
 
     def _make_cost_data(self, results, customer_id, end):
@@ -237,8 +236,8 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _check_task_options(task_options):
-        if 'tenants' not in task_options:
-            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenants')
+        if 'tenant_id' not in task_options:
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenant_id')
 
         if 'start' not in task_options:
             raise ERROR_REQUIRED_PARAMETER(key='task_options.start')
