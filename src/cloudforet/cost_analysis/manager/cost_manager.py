@@ -19,7 +19,7 @@ class CostManager(BaseManager):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
-        tenant_id = task_options['tenant_id']
+        tenants = task_options['tenants']
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
@@ -28,12 +28,14 @@ class CostManager(BaseManager):
         for time_period in monthly_time_period:
             _start = self._convert_date_format_to_utc(time_period['start'])
             _end = self._convert_date_format_to_utc(time_period['end'])
+            print(f'{datetime.utcnow()} [INFO] data is collecting... {_start} ~ {_end} ')
+            for tenant_id in tenants:
+                print(f'{datetime.utcnow()} [INFO] tenant data is collecting... {_start} ~ {_end} ')
+                for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options):
+                    yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
+                print(f"{datetime.utcnow()} [INFO][get_data] #{len(tenants)} tenant's collect is done")
 
-            print(f'{datetime.utcnow()} [INFO] tenant data is collecting... {_start} ~ {_end} ')
-            for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end):
-                yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
-            print(f"{datetime.utcnow()} [INFO][get_data] customer's collect is done")
-        yield []
+            yield []
 
     def _make_cost_data(self, results, customer_id, end):
         costs_data = []
@@ -235,14 +237,6 @@ class CostManager(BaseManager):
         return datetime.strptime(date_format, '%Y-%m-%d').replace(tzinfo=timezone.utc)
 
     @staticmethod
-    def _check_task_options(task_options):
-        if 'tenant_id' not in task_options:
-            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenant_id')
-
-        if 'start' not in task_options:
-            raise ERROR_REQUIRED_PARAMETER(key='task_options.start')
-
-    @staticmethod
     def _make_monthly_time_period(start_date, end_date):
         monthly_time_period = []
         current_date = datetime.utcnow().strftime('%Y-%m-%d')
@@ -271,3 +265,11 @@ class CostManager(BaseManager):
                     last_date_of_month = current_date
                 monthly_time_period.append({'start': first_date_of_month, 'end': last_date_of_month})
         return monthly_time_period
+
+    @staticmethod
+    def _check_task_options(task_options):
+        if 'tenants' not in task_options:
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenants')
+
+        if 'start' not in task_options:
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.start')
