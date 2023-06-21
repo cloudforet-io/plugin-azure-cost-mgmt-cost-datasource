@@ -3,6 +3,7 @@ import os
 import requests
 import time
 
+from datetime import datetime
 from cloudforet.cost_analysis.conf.cost_conf import *
 from spaceone.core import utils
 from spaceone.core.connector import BaseConnector
@@ -76,28 +77,22 @@ class AzureCostMgmtConnector(BaseConnector):
         try:
             billing_account_name = self.billing_account_name
             api_version = '2022-10-01'
-            url = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
+            self.next_link = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
 
-            if self.next_link:
+            while self.next_link:
                 url = self.next_link
 
-            if options is None:
-                options = {
-                    'aggregation': 'usd_cost',
-                }
+                parameters = self._make_parameters(start, end, options)
+                headers = self._make_request_headers(secret_data, customer_id)
+                response = requests.post(url=url, headers=headers, json=parameters)
+                response_json = response.json()
 
-            parameters = self._make_parameters(start, end, options)
-            headers = self._make_request_headers(secret_data, customer_id)
-            response = requests.post(url=url, headers=headers, json=parameters)
-            response_json = response.json()
+                if response_json.get('error'):
+                    response_json = self._retry_request(response=response, url=url, headers=headers,
+                                                        json=parameters, retry_count=RETRY_COUNT, method='post')
 
-            if response_json.get('error'):
-                response_json = self._retry_request(response=response, url=url, headers=headers,
-                                                    json=parameters, retry_count=RETRY_COUNT, method='post')
-
-            self.next_link = response_json.get('nextLink', None)
-
-            yield response_json
+                self.next_link = response_json.get('properties').get('nextLink', None)
+                yield response_json
         except Exception as e:
             raise ERROR_UNKNOWN(message=f'[ERROR] get_usd_cost_and_tag_http {e}')
 
@@ -118,6 +113,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
     def _retry_request(self, response, url, headers, json, retry_count, method='post'):
         try:
+            print(f'{datetime.utcnow()}[INFO] retry_request {response.headers}')
             if retry_count == 0:
                 raise ERROR_UNKNOWN(message=f'[ERROR] retry_request failed {response.json()}')
 
@@ -144,16 +140,13 @@ class AzureCostMgmtConnector(BaseConnector):
         aggregation = AGGREGATION_USAGE_QUANTITY
         grouping = GROUPING
 
-        if options.get('aggregation') == 'usd_cost':
-            aggregation = dict(aggregation, **AGGREGATION_USD_COST)
-        else:
+        if options.get('aggregation') == 'cost':
             aggregation = dict(aggregation, **AGGREGATION_COST)
+        else:
+            aggregation = dict(aggregation, **AGGREGATION_USD_COST)
 
         if options.get('grouping') == 'tag':
             grouping = grouping + [GROUPING_TAG_OPTION]
-
-        if options.get('granularity'):
-            parameters.update({'dataset': {'granularity': options.get('granularity')}})
 
         parameters.update({
             'type': TYPE,
@@ -164,7 +157,8 @@ class AzureCostMgmtConnector(BaseConnector):
             },
             'dataset': {
                 'aggregation': aggregation,
-                'grouping': grouping
+                'grouping': grouping,
+                'granularity': options.get('granularity', None),
             }
         })
 
