@@ -29,13 +29,12 @@ class CostManager(BaseManager):
             _start = self._convert_date_format_to_utc(time_period['start'])
             _end = self._convert_date_format_to_utc(time_period['end'])
             print(f'{datetime.utcnow()} [INFO] data is collecting... {_start} ~ {_end} ')
-            for tenant_id in tenants:
-                print(f'{datetime.utcnow()} [INFO] tenant data is collecting... {_start} ~ {_end} ')
+            for idx, tenant_id in enumerate(tenants):
                 for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options):
                     yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
-                print(f"{datetime.utcnow()} [INFO][get_data] #{len(tenants)} tenant's collect is done")
+                print(f"{datetime.utcnow()} [INFO][get_data] #{idx} tenant_id={tenant_id} collect is done")
 
-            yield []
+        yield []
 
     def _make_cost_data(self, results, customer_id, end):
         costs_data = []
