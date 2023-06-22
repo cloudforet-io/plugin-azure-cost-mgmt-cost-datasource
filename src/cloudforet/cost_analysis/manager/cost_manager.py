@@ -18,6 +18,7 @@ class CostManager(BaseManager):
     def get_data(self, options, secret_data, schema, task_options):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
+        query_count = 0
 
         tenants = task_options['tenants']
         start = self._convert_date_format_to_utc(task_options['start'])
@@ -30,9 +31,10 @@ class CostManager(BaseManager):
             _end = self._convert_date_format_to_utc(time_period['end'])
             print(f'{datetime.utcnow()} [INFO] data is collecting... {_start} ~ {_end} ')
             for idx, tenant_id in enumerate(tenants):
-                for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options):
+                for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options, query_count=query_count):
+                    query_count += 1
                     yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
-                print(f"{datetime.utcnow()} [INFO][get_data] #{idx} tenant_id={tenant_id} collect is done")
+                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} tenant_id={tenant_id} collect is done, query_count={query_count}")
 
         yield []
 

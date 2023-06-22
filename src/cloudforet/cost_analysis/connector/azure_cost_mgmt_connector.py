@@ -73,7 +73,7 @@ class AzureCostMgmtConnector(BaseConnector):
         }
         return self.cost_mgmt_client.query.usage(scope=scope, parameters=parameters)
 
-    def query_http(self, secret_data, customer_id, start, end, options=None):
+    def query_http(self, secret_data, customer_id, start, end, options=None, **kwargs):
         try:
             billing_account_name = self.billing_account_name
             api_version = '2022-10-01'
@@ -89,7 +89,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
                 if response_json.get('error'):
                     response_json = self._retry_request(response=response, url=url, headers=headers,
-                                                        json=parameters, retry_count=RETRY_COUNT, method='post')
+                                                        json=parameters, retry_count=RETRY_COUNT, method='post', **kwargs)
 
                 self.next_link = response_json.get('properties').get('nextLink', None)
                 yield response_json
@@ -111,9 +111,10 @@ class AzureCostMgmtConnector(BaseConnector):
 
         return headers
 
-    def _retry_request(self, response, url, headers, json, retry_count, method='post'):
+    def _retry_request(self, response, url, headers, json, retry_count, method='post', **kwargs):
         try:
             print(f'{datetime.utcnow()}[INFO] retry_request {response.headers}')
+            print(f'{datetime.utcnow()}[INFO] retry_request query_count={kwargs["query_count"]}')
             if retry_count == 0:
                 raise ERROR_UNKNOWN(message=f'[ERROR] retry_request failed {response.json()}')
 
