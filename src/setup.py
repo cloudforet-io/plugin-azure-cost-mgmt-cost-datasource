@@ -1,5 +1,5 @@
 #
-#   Copyright 2023 The SpaceONE Authors.
+#   Copyright 2023 The Cloudforet Authors.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ setup(
     description='Data source plugin for Azure Cost Management',
     long_description='',
     url='https://cloudforet.io/',
-    author='MEGAZONE SpaceONE Team',
+    author='Cloudforet Admin',
     author_email='admin@cloudforet.io',
     license='Apache License 2.0',
     packages=find_packages(),
