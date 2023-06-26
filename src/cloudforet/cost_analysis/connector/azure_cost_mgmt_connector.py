@@ -114,7 +114,6 @@ class AzureCostMgmtConnector(BaseConnector):
     def _retry_request(self, response, url, headers, json, retry_count, method='post', **kwargs):
         try:
             print(f'{datetime.utcnow()}[INFO] retry_request {response.headers}')
-            print(f'{datetime.utcnow()}[INFO] retry_request query_count={kwargs["query_count"]}')
             if retry_count == 0:
                 raise ERROR_UNKNOWN(message=f'[ERROR] retry_request failed {response.json()}')
 
@@ -159,7 +158,7 @@ class AzureCostMgmtConnector(BaseConnector):
             'dataset': {
                 'aggregation': aggregation,
                 'grouping': grouping,
-                'granularity': options.get('granularity', None),
+                'granularity': options.get('granularity', GRANULARITY),
             }
         })
 

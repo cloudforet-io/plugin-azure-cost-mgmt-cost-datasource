@@ -12,29 +12,27 @@ _LOGGER = logging.getLogger(__name__)
 
 class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.azure_cm_connector: AzureCostMgmtConnector = self.locator.get_connector('AzureCostMgmtConnector')
 
     def get_data(self, options, secret_data, schema, task_options):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
-        query_count = 0
 
         tenants = task_options['tenants']
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
         monthly_time_period = self._make_monthly_time_period(start, end)
-
+        _LOGGER.info(f'[get_data] monthly_time_period: {monthly_time_period}')
         for time_period in monthly_time_period:
             _start = self._convert_date_format_to_utc(time_period['start'])
             _end = self._convert_date_format_to_utc(time_period['end'])
-            print(f'{datetime.utcnow()} [INFO] data is collecting... {_start} ~ {_end} ')
+            print(f"{datetime.utcnow()} [INFO][get_data] {len(tenants)} tenant's data is collecting... {_start} ~ {_end}")
             for idx, tenant_id in enumerate(tenants):
-                for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options, query_count=query_count):
-                    query_count += 1
+                for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options):
                     yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
-                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} tenant_id={tenant_id} collect is done, query_count={query_count}")
+                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} tenant_id={tenant_id} collect is done")
 
         yield []
 
