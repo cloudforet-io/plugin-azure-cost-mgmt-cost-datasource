@@ -1,3 +1,4 @@
+SECRET_TYPE_DEFAULT = 'MANUAL'
 RETRY_COUNT = 4
 TYPE = 'ActualCost'
 TIMEFRAME = 'Custom'
@@ -8,21 +9,21 @@ AGGREGATION_COST = {"totalCost": {"name": "Cost", "function": "Sum"}}
 AGGREGATION_USAGE_QUANTITY = {"UsageQuantity": {"name": "UsageQuantity", "function": "Sum"}}
 
 GROUPING = [
-    {'type': 'Dimension', 'name': 'ResourceGroup'},
-    {'type': 'Dimension', 'name': 'ResourceType'},
-    {'type': 'Dimension', 'name': 'ResourceId'},
-    {'type': 'Dimension', 'name': 'ResourceLocation'},
-    {'type': 'Dimension', 'name': 'SubscriptionId'},
-    {'type': 'Dimension', 'name': 'SubscriptionName'},
-    {'type': 'Dimension', 'name': 'MeterCategory'},
-    {'type': 'Dimension', 'name': 'Meter'},
-    {'type': 'Dimension', 'name': 'UnitOfMeasure'},
-    {'type': 'Dimension', 'name': 'BenefitName'},
-    {'type': 'Dimension', 'name': 'PricingModel'},
-    {'type': 'Dimension', 'name': 'MeterSubcategory'}
+    {"type": "Dimension", "name": "ResourceGroup"},
+    {"type": "Dimension", "name": "ResourceType"},
+    {"type": "Dimension", "name": "ResourceId"},
+    {"type": "Dimension", "name": "ResourceLocation"},
+    {"type": "Dimension", "name": "SubscriptionId"},
+    {"type": "Dimension", "name": "SubscriptionName"},
+    {"type": "Dimension", "name": "MeterCategory"},
+    {"type": "Dimension", "name": "Meter"},
+    {"type": "Dimension", "name": "UnitOfMeasure"},
+    {"type": "Dimension", "name": "BenefitName"},
+    {"type": "Dimension", "name": "PricingModel"},
+    {"type": "Dimension", "name": "MeterSubcategory"}
 ]
 
-GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
+GROUPING_TAG_OPTION = {"type": 'Tag', "name": ''}
 
 REGION_MAP = {
     'global': 'global',
@@ -50,4 +51,9 @@ REGION_MAP = {
     'in central': 'centralindia',
     'de west central': 'germanywestcentral',
     'us south central': 'southcentralus',
+}
+
+SCOPE_MAP = {
+    'subscription_id': 'subscriptions/{subscription_id}',
+    'customer_id': 'providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}'
 }

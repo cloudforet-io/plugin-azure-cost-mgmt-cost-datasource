@@ -19,24 +19,36 @@ class CostManager(BaseManager):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
-        tenants = task_options['tenants']
+        collect_units, collect_type = self._get_collect_units(task_options)
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
         monthly_time_period = self._make_monthly_time_period(start, end)
         _LOGGER.info(f'[get_data] monthly_time_period: {monthly_time_period}')
         for time_period in monthly_time_period:
-            _start = self._convert_date_format_to_utc(time_period['start'])
-            _end = self._convert_date_format_to_utc(time_period['end'])
-            print(f"{datetime.utcnow()} [INFO][get_data] {len(tenants)} tenant's data is collecting... {_start} ~ {_end}")
-            for idx, tenant_id in enumerate(tenants):
-                for response_stream in self.azure_cm_connector.query_http(secret_data, tenant_id, _start, _end, options):
-                    yield self._make_cost_data(results=response_stream, customer_id=tenant_id, end=_end)
+            _start = time_period['start']
+            _end = time_period['end']
+            print(f"{datetime.utcnow()} [INFO][get_data] {len(collect_units)} tenant's data is collecting... {_start} ~ {_end}")
+            for idx, collect_unit in enumerate(collect_units):
+                scope = self.azure_cm_connector.make_scope(collect_unit, collect_type)
+                tenant_id = collect_unit if collect_type == 'customer_id' else secret_data['tenant_id']
+
+                for response_stream in self.azure_cm_connector.query_http(scope, secret_data, _start, _end, options):
+                    yield self._make_cost_data(results=response_stream, tenant_id=tenant_id, end=_end)
                 print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} tenant_id={tenant_id} collect is done")
 
         yield []
 
-    def _make_cost_data(self, results, customer_id, end):
+    @staticmethod
+    def _get_collect_units(task_options):
+        if 'subscription_id' in task_options:
+            collect_type = 'subscription_id'
+            return [task_options['subscription_id']], collect_type
+        else:
+            collect_type = 'customer_id'
+            return task_options['tenants'], collect_type
+
+    def _make_cost_data(self, results, tenant_id, end):
         costs_data = []
         try:
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
@@ -46,7 +58,7 @@ class CostManager(BaseManager):
                 if not billed_at:
                     continue
 
-                data = self._make_data_info(cb_result, billed_at, customer_id)
+                data = self._make_data_info(cb_result, billed_at, tenant_id)
                 costs_data.append(data)
 
         except Exception as e:
@@ -76,8 +88,8 @@ class CostManager(BaseManager):
             _LOGGER.error(f'[_combine_make_data] make data error: {e}', exc_info=True)
             raise e
 
-    def _make_data_info(self, result, billed_at, customer_id=None):
-        additional_info = self._get_additional_info(result, customer_id)
+    def _make_data_info(self, result, billed_at, tenant_id=None):
+        additional_info = self._get_additional_info(result, tenant_id)
         cost = self._convert_str_to_float_format(result.get('Cost', 0))
         usd_cost = self._convert_str_to_float_format(result.get('CostUSD', 0))
         currency = 'USD'
@@ -134,12 +146,12 @@ class CostManager(BaseManager):
             tag_dict[tag] = ''
         return tag_dict
 
-    def _get_additional_info(self, result, customer_id):
+    def _get_additional_info(self, result, tenant_id):
         additional_info = {}
         meter_category = result.get('MeterCategory', '')
 
-        if customer_id:
-            additional_info = {'Azure Tenant ID': customer_id}
+        if tenant_id:
+            additional_info = {'Azure Tenant ID': tenant_id}
 
         if result.get('ResourceLocation') != '' and result.get('ResourceLocation'):
             additional_info['Azure Resource Group'] = result['ResourceGroup']
@@ -235,8 +247,7 @@ class CostManager(BaseManager):
     def _convert_date_format_to_utc(date_format: str):
         return datetime.strptime(date_format, '%Y-%m-%d').replace(tzinfo=timezone.utc)
 
-    @staticmethod
-    def _make_monthly_time_period(start_date, end_date):
+    def _make_monthly_time_period(self, start_date, end_date):
         monthly_time_period = []
         current_date = datetime.utcnow().strftime('%Y-%m-%d')
 
@@ -262,13 +273,14 @@ class CostManager(BaseManager):
                     last_date_of_month = (datetime(year, month + 1, 1) - timedelta(days=1)).strftime('%Y-%m-%d')
                 if last_date_of_month > current_date:
                     last_date_of_month = current_date
-                monthly_time_period.append({'start': first_date_of_month, 'end': last_date_of_month})
+                monthly_time_period.append({'start': self._convert_date_format_to_utc(first_date_of_month),
+                                            'end': self._convert_date_format_to_utc(last_date_of_month)})
         return monthly_time_period
 
     @staticmethod
     def _check_task_options(task_options):
-        if 'tenants' not in task_options:
-            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenants')
+        if 'tenants' not in task_options and 'subscription_id' not in task_options:
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenants or task_options.subscription_id')
 
         if 'start' not in task_options:
             raise ERROR_REQUIRED_PARAMETER(key='task_options.start')

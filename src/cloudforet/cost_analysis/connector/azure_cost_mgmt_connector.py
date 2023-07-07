@@ -38,7 +38,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
         credential = DefaultAzureCredential()
 
-        self.billing_account_name = secret_data['billing_account_name']
+        self.billing_account_name = secret_data.get('billing_account_name')
         self.billing_client = BillingManagementClient(credential=credential, subscription_id=subscription_id)
         self.cost_mgmt_client = CostManagementClient(credential=credential, subscription_id=subscription_id)
 
@@ -54,6 +54,11 @@ class AzureCostMgmtConnector(BaseConnector):
             })
 
         return billing_accounts_info
+
+    def get_billing_account(self):
+        billing_account_name = self.billing_account_name
+        billing_account_info = self.billing_client.billing_accounts.get(billing_account_name=billing_account_name)
+        return billing_account_info
 
     def query(self, customer_id, start, end):
         billing_account_name = self.billing_account_name
@@ -73,17 +78,16 @@ class AzureCostMgmtConnector(BaseConnector):
         }
         return self.cost_mgmt_client.query.usage(scope=scope, parameters=parameters)
 
-    def query_http(self, secret_data, customer_id, start, end, options=None, **kwargs):
+    def query_http(self, scope, secret_data, start, end, options=None, **kwargs):
         try:
-            billing_account_name = self.billing_account_name
-            api_version = '2022-10-01'
-            self.next_link = f'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}/providers/Microsoft.CostManagement/query?api-version={api_version}'
+            api_version = '2023-03-01'
+            self.next_link = f'https://management.azure.com/{scope}/providers/Microsoft.CostManagement/query?api-version={api_version}'
 
             while self.next_link:
                 url = self.next_link
 
                 parameters = self._make_parameters(start, end, options)
-                headers = self._make_request_headers(secret_data, customer_id)
+                headers = self._make_request_headers(secret_data, client_type=scope)
                 response = requests.post(url=url, headers=headers, json=parameters)
                 response_json = response.json()
 
@@ -94,20 +98,20 @@ class AzureCostMgmtConnector(BaseConnector):
                 self.next_link = response_json.get('properties').get('nextLink', None)
                 yield response_json
         except Exception as e:
-            raise ERROR_UNKNOWN(message=f'[ERROR] get_usd_cost_and_tag_http {e}')
+            raise ERROR_UNKNOWN(message=f'[ERROR] query_http {e}')
 
     def list_by_billing_account(self):
         billing_account_name = self.billing_account_name
         return self.billing_client.billing_subscriptions.list_by_billing_account(billing_account_name=billing_account_name)
 
-    def _make_request_headers(self, secret_data, customer_id):
+    def _make_request_headers(self, secret_data, client_type=None):
         access_token = self._get_access_token(secret_data)
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
         }
-        if customer_id is not None:
-            headers['ClientType'] = customer_id
+        if client_type is not None:
+            headers['ClientType'] = client_type
 
         return headers
 
@@ -133,6 +137,13 @@ class AzureCostMgmtConnector(BaseConnector):
         except Exception as e:
             _LOGGER.error(f'[ERROR] retry_request failed {e}')
             raise e
+
+    def make_scope(self, collect_unit, collect_type):
+        if 'subscription_id' == collect_type:
+            scope = SCOPE_MAP[collect_type].format(subscription_id=collect_unit)
+        else:
+            scope = SCOPE_MAP[collect_type].format(billing_account_name=self.billing_account_name, customer_id=collect_unit)
+        return scope
 
     @staticmethod
     def _make_parameters(start, end, options=None):
@@ -191,8 +202,8 @@ class AzureCostMgmtConnector(BaseConnector):
 
     @staticmethod
     def _check_secret_data(secret_data):
-        if 'billing_account_name' not in secret_data:
-            raise ERROR_REQUIRED_PARAMETER(key='secret_data.billing_account_name')
+        if 'billing_account_name' not in secret_data and 'subscription_id' not in secret_data:
+            raise ERROR_REQUIRED_PARAMETER(key='secret_data.billing_account_name or secret_data.subscription_id')
 
         if 'tenant_id' not in secret_data:
             raise ERROR_REQUIRED_PARAMETER(key='secret_data.tenant_id')
