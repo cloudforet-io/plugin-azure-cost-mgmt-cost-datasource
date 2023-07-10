@@ -120,6 +120,8 @@ class AzureCostMgmtConnector(BaseConnector):
             print(f'{datetime.utcnow()}[INFO] retry_request {response.headers}')
             if retry_count == 0:
                 raise ERROR_UNKNOWN(message=f'[ERROR] retry_request failed {response.json()}')
+            elif response.status_code == 400:
+                raise ERROR_UNKNOWN(message=f'[ERROR] retry_request failed {response.json()}')
 
             _sleep_time = self._get_sleep_time(response.headers)
             time.sleep(_sleep_time)
