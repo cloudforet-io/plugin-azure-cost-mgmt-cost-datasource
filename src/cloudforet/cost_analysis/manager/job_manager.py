@@ -32,7 +32,8 @@ class JobManager(BaseManager):
             changed = [{'start': changed_time}]
         elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
             subscription_id = secret_data.get('subscription_id', '')
-            tasks = [{'task_options': {'subscription_id': subscription_id, 'start': start_date}}]
+            tenants = [secret_data.get('tenant_id')]
+            tasks = [{'task_options': {'subscription_id': subscription_id, 'tenants': tenants, 'start': start_date}}]
             changed = [{'start': changed_time}]
 
         else:
