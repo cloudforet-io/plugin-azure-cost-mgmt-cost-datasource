@@ -8,7 +8,6 @@ from cloudforet.cost_analysis.conf.cost_conf import SECRET_TYPE_DEFAULT
 from cloudforet.cost_analysis.error.cost import *
 
 _LOGGER = logging.getLogger(__name__)
-_DEFAULT_DATABASE = 'MZC'
 
 
 class JobManager(BaseManager):
