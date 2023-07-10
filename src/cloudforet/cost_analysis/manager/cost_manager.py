@@ -153,7 +153,7 @@ class CostManager(BaseManager):
         if tenant_id:
             additional_info = {'Azure Tenant ID': tenant_id}
 
-        if result.get('ResourceLocation') != '' and result.get('ResourceLocation'):
+        if result.get('ResourceLocation') != '' and result.get('ResourceGroup'):
             additional_info['Azure Resource Group'] = result['ResourceGroup']
 
         if result.get('ResourceType') != '' and result.get('ResourceType'):
