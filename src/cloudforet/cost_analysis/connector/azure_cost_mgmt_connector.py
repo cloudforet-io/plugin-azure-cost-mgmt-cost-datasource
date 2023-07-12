@@ -8,6 +8,7 @@ from cloudforet.cost_analysis.conf.cost_conf import *
 from spaceone.core import utils
 from spaceone.core.connector import BaseConnector
 from spaceone.core.error import *
+from cloudforet.cost_analysis.error.cost import *
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
 from azure.mgmt.costmanagement import CostManagementClient
@@ -200,7 +201,10 @@ class AzureCostMgmtConnector(BaseConnector):
             'resource': 'https://management.azure.com/'
         }
         get_token_response = requests.post(url=get_token_url, data=get_token_data)
-        return get_token_response.json()['access_token']
+        access_token = get_token_response.json().get('access_token')
+        if access_token is None:
+            raise ERROR_INVALID_TOKEN(token=get_token_response.json())
+        return access_token
 
     @staticmethod
     def _check_secret_data(secret_data):
