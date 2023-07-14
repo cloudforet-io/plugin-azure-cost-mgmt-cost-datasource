@@ -19,36 +19,38 @@ class CostManager(BaseManager):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
-        collect_units, collect_type = self._get_collect_units(task_options)
+        tenant_id = secret_data.get('tenant_id')
+        collect_scope = task_options['collect_scope']
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
+        scope = self._make_scope(secret_data, task_options, collect_scope)
         monthly_time_period = self._make_monthly_time_period(start, end)
-        _LOGGER.info(f'[get_data] monthly_time_period: {monthly_time_period}')
+        parameters = self._make_parameters(start, end, options)
+        parameters = self._add_filters_to_parameters(parameters, task_options)
+
+        print(f'[get_data] monthly_time_period: {monthly_time_period}')
         for time_period in monthly_time_period:
             _start = time_period['start']
             _end = time_period['end']
-            print(f"{datetime.utcnow()} [INFO][get_data] {len(collect_units)} tenant's data is collecting... {_start} ~ {_end}")
-            for idx, collect_unit in enumerate(collect_units):
-                scope = self.azure_cm_connector.make_scope(collect_unit, collect_type)
-                tenant_id = collect_unit if collect_type == 'customer_id' else secret_data['tenant_id']
-
-                for response_stream in self.azure_cm_connector.query_http(scope, secret_data, _start, _end, options):
-                    yield self._make_cost_data(results=response_stream, tenant_id=tenant_id, end=_end)
-                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} tenant_id={tenant_id} collect is done")
+            print(f"{datetime.utcnow()} [INFO][get_data] tenant data is collecting from {_start} to {_end}")
+            for response_stream in self.azure_cm_connector.query_http(scope, secret_data, parameters):
+                yield self._make_cost_data(results=response_stream, end=_end, tenant_id=tenant_id)
+            print(f"{datetime.utcnow()} [INFO][get_data] tenant  collect is done")
 
         yield []
 
     @staticmethod
-    def _get_collect_units(task_options):
-        if 'subscription_id' in task_options:
-            collect_type = 'subscription_id'
-            return [task_options['subscription_id']], collect_type
+    def _make_scope(secret_data, task_options, collect_scope):
+        if collect_scope == 'subscription_id':
+            subscription_id = task_options['subscription_id']
+            scope = SCOPE_MAP[collect_scope].format(subscription_id=subscription_id)
         else:
-            collect_type = 'customer_id'
-            return task_options['tenants'], collect_type
+            billing_account_id = secret_data.get('billing_account_id')
+            scope = SCOPE_MAP[collect_scope].format(billing_account_id=billing_account_id)
+        return scope
 
-    def _make_cost_data(self, results, tenant_id, end):
+    def _make_cost_data(self, results, end, tenant_id=None):
         costs_data = []
         try:
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
@@ -66,27 +68,6 @@ class CostManager(BaseManager):
             raise e
 
         return costs_data
-
-    def _combine_make_data(self, costs_data, results):
-        try:
-            costs_data_without_tag = []
-            combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
-                                                                           results.get('properties').get('columns'))
-            for cb_result in combined_results:
-                billed_at = self._set_billed_at(cb_result.get('UsageDate'))
-                if not billed_at:
-                    continue
-
-                data = self._make_data_info(cb_result, billed_at)
-                costs_data_without_tag.append(data)
-
-            for idx, cost_data in enumerate(costs_data):
-                if self._check_prev_and_current_result(cost_data, costs_data_without_tag[idx]):
-                    cost_data.update({'usd_cost': costs_data_without_tag[idx]['usd_cost']})
-            return costs_data
-        except Exception as e:
-            _LOGGER.error(f'[_combine_make_data] make data error: {e}', exc_info=True)
-            raise e
 
     def _make_data_info(self, result, billed_at, tenant_id=None):
         additional_info = self._get_additional_info(result, tenant_id)
@@ -124,34 +105,12 @@ class CostManager(BaseManager):
 
         return data
 
-    @staticmethod
-    def _set_end_date(last_billed_at, next_link=None):
-        if next_link:
-            return last_billed_at - timedelta(seconds=1)
-        else:
-            return last_billed_at.replace(hour=23, minute=59, second=59)
-
-    @staticmethod
-    def _convert_tag_str_to_dict(tag: str):
-        if tag is None:
-            return {}
-
-        tag_dict = {}
-        if ":" in tag:
-            tag = tag.split(':')
-            _key = tag[0]
-            _value = tag[1]
-            tag_dict[_key] = _value
-        elif tag:
-            tag_dict[tag] = ''
-        return tag_dict
-
-    def _get_additional_info(self, result, tenant_id):
+    def _get_additional_info(self, result, tenant_id=None):
         additional_info = {}
         meter_category = result.get('MeterCategory', '')
 
-        if tenant_id:
-            additional_info = {'Azure Tenant ID': tenant_id}
+        tenant_id = result.get('CustomerTenantId') if result.get('CustomerTenantId') else tenant_id
+        additional_info['Azure Tenant ID'] = tenant_id
 
         if result.get('ResourceLocation') != '' and result.get('ResourceGroup'):
             additional_info['Azure Resource Group'] = result['ResourceGroup']
@@ -182,6 +141,90 @@ class CostManager(BaseManager):
 
         return additional_info
 
+    def _combine_make_data(self, costs_data, results):
+        try:
+            costs_data_without_tag = []
+            combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
+                                                                           results.get('properties').get('columns'))
+            for cb_result in combined_results:
+                billed_at = self._set_billed_at(cb_result.get('UsageDate'))
+                if not billed_at:
+                    continue
+
+                data = self._make_data_info(cb_result, billed_at)
+                costs_data_without_tag.append(data)
+
+            for idx, cost_data in enumerate(costs_data):
+                if self._check_prev_and_current_result(cost_data, costs_data_without_tag[idx]):
+                    cost_data.update({'usd_cost': costs_data_without_tag[idx]['usd_cost']})
+            return costs_data
+        except Exception as e:
+            _LOGGER.error(f'[_combine_make_data] make data error: {e}', exc_info=True)
+            raise e
+
+    @staticmethod
+    def _add_filters_to_parameters(parameters, task_options):
+        collect_scope = task_options['collect_scope']
+
+        if collect_scope == 'billing_account_id':
+            customer_tenants = task_options['customer_tenants']
+            parameters['dataset']['grouping'].append(GROUPING_CUSTOMER_TENANT_OPTION)
+            parameters['dataset'].update({
+                'filter': {
+                    'dimensions': {
+                        'name': 'CustomerTenantId',
+                        'operator': 'In',
+                        'values': customer_tenants
+                    }
+                }
+            })
+        return parameters
+
+    @staticmethod
+    def _make_parameters(start, end, options=None):
+        parameters = {}
+        aggregation = AGGREGATION_USAGE_QUANTITY
+        grouping = GROUPING
+
+        if options.get('aggregation') == 'cost':
+            aggregation = dict(aggregation, **AGGREGATION_COST)
+        else:
+            aggregation = dict(aggregation, **AGGREGATION_USD_COST)
+
+        if options.get('grouping') == 'tag':
+            grouping = grouping + [GROUPING_TAG_OPTION]
+
+        parameters.update({
+            'type': TYPE,
+            'timeframe': TIMEFRAME,
+            'timePeriod': {
+                'from': start.isoformat(),
+                'to': end.isoformat()
+            },
+            'dataset': {
+                'aggregation': aggregation,
+                'grouping': grouping,
+                'granularity': options.get('granularity', GRANULARITY),
+            }
+        })
+
+        return parameters
+
+    @staticmethod
+    def _convert_tag_str_to_dict(tag: str):
+        if tag is None:
+            return {}
+
+        tag_dict = {}
+        if ":" in tag:
+            tag = tag.split(':')
+            _key = tag[0]
+            _value = tag[1]
+            tag_dict[_key] = _value
+        elif tag:
+            tag_dict[tag] = ''
+        return tag_dict
+
     @staticmethod
     def _set_product_from_benefit_name(benefit_name):
         _product_name_format = 'Reserved {_product_name}'
@@ -194,6 +237,10 @@ class CostManager(BaseManager):
                 product_name = _product_name_format.format(_product_name='Redis Cache')
             elif 'DISK' in benefit_name.upper():
                 product_name = _product_name_format.format(_product_name='Disk')
+            elif 'BLOB' in benefit_name.upper():
+                product_name = _product_name_format.format(_product_name='Blob Storage Capacity')
+            elif 'FILE' in benefit_name.upper():
+                product_name = _product_name_format.format(_product_name='File Capacity')
             elif len(benefit_name.split("_")) > 1:
                 product_name = _product_name_format.format(_product_name=benefit_name.split("_")[0])
 
@@ -279,8 +326,8 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _check_task_options(task_options):
-        if 'tenants' not in task_options and 'subscription_id' not in task_options:
-            raise ERROR_REQUIRED_PARAMETER(key='task_options.tenants or task_options.subscription_id')
+        if 'customer_tenants' not in task_options and 'subscription_id' not in task_options:
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.customer_tenants or task_options.subscription_id')
 
         if 'start' not in task_options:
             raise ERROR_REQUIRED_PARAMETER(key='task_options.start')
