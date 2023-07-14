@@ -23,7 +23,7 @@ class AzureCostMgmtConnector(BaseConnector):
         super().__init__(*args, **kwargs)
         self.billing_client = None
         self.cost_mgmt_client = None
-        self.billing_account_name = None
+        self.billing_account_id = None
         self.next_link = None
 
     def create_session(self, options: dict, secret_data: dict, schema: str):
@@ -38,14 +38,14 @@ class AzureCostMgmtConnector(BaseConnector):
 
         credential = DefaultAzureCredential()
 
-        self.billing_account_name = secret_data.get('billing_account_name')
+        self.billing_account_id = secret_data.get('billing_account_id')
         self.billing_client = BillingManagementClient(credential=credential, subscription_id=subscription_id)
         self.cost_mgmt_client = CostManagementClient(credential=credential, subscription_id=subscription_id)
 
     def list_billing_accounts(self):
         billing_accounts_info = []
 
-        billing_account_name = self.billing_account_name
+        billing_account_name = self.billing_account_id
         billing_accounts = self.billing_client.customers.list_by_billing_account(
             billing_account_name=billing_account_name)
         for billing_account in billing_accounts:
@@ -56,13 +56,13 @@ class AzureCostMgmtConnector(BaseConnector):
         return billing_accounts_info
 
     def get_billing_account(self):
-        billing_account_name = self.billing_account_name
+        billing_account_name = self.billing_account_id
         billing_account_info = self.billing_client.billing_accounts.get(billing_account_name=billing_account_name)
         return billing_account_info
 
     def query(self, customer_id, start, end):
-        billing_account_name = self.billing_account_name
-        scope = f'providers/Microsoft.Billing/billingAccounts/{billing_account_name}/customers/{customer_id}'
+        billing_account_id = self.billing_account_id
+        scope = f'providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{customer_id}'
         parameters = {
             'type': TYPE,
             'timeframe': TIMEFRAME,
@@ -78,7 +78,7 @@ class AzureCostMgmtConnector(BaseConnector):
         }
         return self.cost_mgmt_client.query.usage(scope=scope, parameters=parameters)
 
-    def query_http(self, scope, secret_data, start, end, options=None, **kwargs):
+    def query_http(self, scope, secret_data, parameters, **kwargs):
         try:
             api_version = '2023-03-01'
             self.next_link = f'https://management.azure.com/{scope}/providers/Microsoft.CostManagement/query?api-version={api_version}'
@@ -86,8 +86,7 @@ class AzureCostMgmtConnector(BaseConnector):
             while self.next_link:
                 url = self.next_link
 
-                parameters = self._make_parameters(start, end, options)
-                headers = self._make_request_headers(secret_data, client_type=scope)
+                headers = self._make_request_headers(secret_data, client_type=secret_data.get('client_id'))
                 response = requests.post(url=url, headers=headers, json=parameters)
                 response_json = response.json()
 
@@ -101,7 +100,7 @@ class AzureCostMgmtConnector(BaseConnector):
             raise ERROR_UNKNOWN(message=f'[ERROR] query_http {e}')
 
     def list_by_billing_account(self):
-        billing_account_name = self.billing_account_name
+        billing_account_name = self.billing_account_id
         return self.billing_client.billing_subscriptions.list_by_billing_account(billing_account_name=billing_account_name)
 
     def _make_request_headers(self, secret_data, client_type=None):
@@ -144,38 +143,8 @@ class AzureCostMgmtConnector(BaseConnector):
         if 'subscription_id' == collect_type:
             scope = SCOPE_MAP[collect_type].format(subscription_id=collect_unit)
         else:
-            scope = SCOPE_MAP[collect_type].format(billing_account_name=self.billing_account_name, customer_id=collect_unit)
+            scope = SCOPE_MAP[collect_type].format(billing_account_name=self.billing_account_id, customer_id=collect_unit)
         return scope
-
-    @staticmethod
-    def _make_parameters(start, end, options=None):
-        parameters = {}
-        aggregation = AGGREGATION_USAGE_QUANTITY
-        grouping = GROUPING
-
-        if options.get('aggregation') == 'cost':
-            aggregation = dict(aggregation, **AGGREGATION_COST)
-        else:
-            aggregation = dict(aggregation, **AGGREGATION_USD_COST)
-
-        if options.get('grouping') == 'tag':
-            grouping = grouping + [GROUPING_TAG_OPTION]
-
-        parameters.update({
-            'type': TYPE,
-            'timeframe': TIMEFRAME,
-            'timePeriod': {
-                'from': start.isoformat(),
-                'to': end.isoformat()
-            },
-            'dataset': {
-                'aggregation': aggregation,
-                'grouping': grouping,
-                'granularity': options.get('granularity', GRANULARITY),
-            }
-        })
-
-        return parameters
 
     @staticmethod
     def _get_sleep_time(response_headers):
@@ -204,8 +173,8 @@ class AzureCostMgmtConnector(BaseConnector):
 
     @staticmethod
     def _check_secret_data(secret_data):
-        if 'billing_account_name' not in secret_data and 'subscription_id' not in secret_data:
-            raise ERROR_REQUIRED_PARAMETER(key='secret_data.billing_account_name or secret_data.subscription_id')
+        if 'billing_account_id' not in secret_data and 'subscription_id' not in secret_data:
+            raise ERROR_REQUIRED_PARAMETER(key='secret_data.billing_account_id or secret_data.subscription_id')
 
         if 'tenant_id' not in secret_data:
             raise ERROR_REQUIRED_PARAMETER(key='secret_data.tenant_id')
