@@ -6,3 +6,6 @@ class ERROR_CONNECTOR_CALL_API(ERROR_UNKNOWN):
 
 class ERROR_INVALID_SECRET_TYPE(ERROR_INVALID_ARGUMENT):
     _message = 'Invalid secret type: {secret_type}'
+
+class ERROR_EMPTY_CUSTOMER_TENANTS(ERROR_INVALID_ARGUMENT):
+    _message = 'Customer tenants is empty: {customer_tenants}'

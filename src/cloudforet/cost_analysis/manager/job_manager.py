@@ -26,14 +26,17 @@ class JobManager(BaseManager):
 
         secret_type = options.get('secret_type', SECRET_TYPE_DEFAULT)
 
-        if secret_type == SECRET_TYPE_DEFAULT:
-            tenants = self._get_tenants_from_billing_account()
-            tasks = [{'task_options': {'tenants': tenants, 'start': start_date}}]
+        if secret_type == 'MANUAL':
+            customer_tenants = secret_data.get('customer_tenants', self._get_tenants_from_billing_account())
+            if len(customer_tenants) == 0:
+                raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
+
+            tasks = [{'task_options': {'customer_tenants': customer_tenants, 'collect_scope': 'billing_account_id', 'start': start_date}}]
             changed = [{'start': changed_time}]
         elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
             subscription_id = secret_data.get('subscription_id', '')
-            tenants = [secret_data.get('tenant_id')]
-            tasks = [{'task_options': {'subscription_id': subscription_id, 'tenants': tenants, 'start': start_date}}]
+            tenant_id = [secret_data.get('tenant_id')]
+            tasks = [{'task_options': {'subscription_id': subscription_id, 'tenant_id': tenant_id, 'collect_scope': 'subscription_id', 'start': start_date}}]
             changed = [{'start': changed_time}]
 
         else:
