@@ -20,7 +20,7 @@ GROUPING = [
     {'type': 'Dimension', 'name': 'UnitOfMeasure'},
     {'type': 'Dimension', 'name': 'BenefitName'},
     {'type': 'Dimension', 'name': 'PricingModel'},
-    {'type': 'Dimension', 'name': 'MeterSubcategory'}
+    {'type': 'Dimension', 'name': 'MeterSubcategory'},
 ]
 
 GROUPING_CUSTOMER_TENANT_OPTION = {'type': 'Dimension', 'name': 'CustomerTenantId'}
@@ -56,5 +56,6 @@ REGION_MAP = {
 
 SCOPE_MAP = {
     'subscription_id': 'subscriptions/{subscription_id}',
-    'billing_account_id': 'providers/Microsoft.Billing/billingAccounts/{billing_account_id}'
+    'billing_account_id': 'providers/Microsoft.Billing/billingAccounts/{billing_account_id}',
+    'customer_tenant_id': 'providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{customer_tenant_id}',
 }

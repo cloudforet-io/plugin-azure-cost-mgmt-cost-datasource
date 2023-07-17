@@ -16,7 +16,7 @@ class TaskOptionsWithCustomerTenants(Model):
 
 class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenants):
     start = StringType(required=True)
-    collect_scope = StringType(choices=['subscription_id', 'billing_account_id'], required=True)
+    collect_scope = StringType(choices=['subscription_id', 'billing_account_id', 'customer_tenant_id'], required=True)
 
 
 class Task(Model):
