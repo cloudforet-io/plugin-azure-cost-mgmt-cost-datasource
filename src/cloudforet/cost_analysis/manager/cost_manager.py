@@ -26,13 +26,12 @@ class CostManager(BaseManager):
 
         scope = self._make_scope(secret_data, task_options, collect_scope)
         monthly_time_period = self._make_monthly_time_period(start, end)
-        parameters = self._make_parameters(start, end, options)
-        parameters = self._add_filters_to_parameters(parameters, task_options)
-
         print(f'[get_data] monthly_time_period: {monthly_time_period}')
         for time_period in monthly_time_period:
             _start = time_period['start']
             _end = time_period['end']
+            parameters = self._make_parameters(_start, _end, options)
+            parameters = self._add_filters_to_parameters(parameters, task_options)
             print(f"{datetime.utcnow()} [INFO][get_data] tenant data is collecting from {_start} to {_end}")
             for response_stream in self.azure_cm_connector.query_http(scope, secret_data, parameters):
                 yield self._make_cost_data(results=response_stream, end=_end, tenant_id=tenant_id)
