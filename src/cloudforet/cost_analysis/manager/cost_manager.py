@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import time
 
 from datetime import datetime, timedelta, timezone
 from spaceone.core.error import *
@@ -19,36 +20,28 @@ class CostManager(BaseManager):
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
-        tenant_id = secret_data.get('tenant_id')
         collect_scope = task_options['collect_scope']
+        customer_tenants = self._get_customer_tenant_id(task_options)
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
-        scope = self._make_scope(secret_data, task_options, collect_scope)
         monthly_time_period = self._make_monthly_time_period(start, end)
-        parameters = self._make_parameters(start, end, options)
-        parameters = self._add_filters_to_parameters(parameters, task_options)
-
-        print(f'[get_data] monthly_time_period: {monthly_time_period}')
         for time_period in monthly_time_period:
             _start = time_period['start']
             _end = time_period['end']
-            print(f"{datetime.utcnow()} [INFO][get_data] tenant data is collecting from {_start} to {_end}")
-            for response_stream in self.azure_cm_connector.query_http(scope, secret_data, parameters):
-                yield self._make_cost_data(results=response_stream, end=_end, tenant_id=tenant_id)
-            print(f"{datetime.utcnow()} [INFO][get_data] tenant  collect is done")
+            parameters = self._make_parameters(_start, _end, options)
+            start_time = time.time()
+            print(f"{datetime.utcnow()} [INFO][get_data] all tenant is start to collect data from {_start} to {_end}")
+            for idx, customer_tenant_id in enumerate(customer_tenants):
+                scope = self._make_scope(secret_data, task_options, collect_scope, customer_tenant_id)
+
+                for response_stream in self.azure_cm_connector.query_http(scope, secret_data, parameters):
+                    yield self._make_cost_data(results=response_stream, end=_end, tenant_id=customer_tenant_id)
+                end_time = time.time()
+                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} {customer_tenant_id} tenant is done")
+        print(f"{datetime.utcnow()} [INFO][get_data] all collect is done in {int(end_time - start_time)} seconds")
 
         yield []
-
-    @staticmethod
-    def _make_scope(secret_data, task_options, collect_scope):
-        if collect_scope == 'subscription_id':
-            subscription_id = task_options['subscription_id']
-            scope = SCOPE_MAP[collect_scope].format(subscription_id=subscription_id)
-        else:
-            billing_account_id = secret_data.get('billing_account_id')
-            scope = SCOPE_MAP[collect_scope].format(billing_account_id=billing_account_id)
-        return scope
 
     def _make_cost_data(self, results, end, tenant_id=None):
         costs_data = []
@@ -163,22 +156,27 @@ class CostManager(BaseManager):
             raise e
 
     @staticmethod
-    def _add_filters_to_parameters(parameters, task_options):
-        collect_scope = task_options['collect_scope']
+    def _get_customer_tenant_id(task_options):
+        customer_tenants = []
+        if task_options.get('customer_tenants'):
+            customer_tenants.extend(task_options['customer_tenants'])
+        else:
+            customer_tenants.append(task_options['tenant_id'])
+        return customer_tenants
 
-        if collect_scope == 'billing_account_id':
-            customer_tenants = task_options['customer_tenants']
-            parameters['dataset']['grouping'].append(GROUPING_CUSTOMER_TENANT_OPTION)
-            parameters['dataset'].update({
-                'filter': {
-                    'dimensions': {
-                        'name': 'CustomerTenantId',
-                        'operator': 'In',
-                        'values': customer_tenants
-                    }
-                }
-            })
-        return parameters
+    @staticmethod
+    def _make_scope(secret_data, task_options, collect_scope, customer_tenant_id=None):
+        if collect_scope == 'subscription_id':
+            subscription_id = task_options['subscription_id']
+            scope = SCOPE_MAP[collect_scope].format(subscription_id=subscription_id)
+        elif collect_scope == 'customer_tenant_id':
+            billing_account_id = secret_data.get('billing_account_id')
+            scope = SCOPE_MAP[collect_scope].format(billing_account_id=billing_account_id,
+                                                    customer_tenant_id=customer_tenant_id)
+        else:
+            billing_account_id = secret_data.get('billing_account_id')
+            scope = SCOPE_MAP[collect_scope].format(billing_account_id=billing_account_id)
+        return scope
 
     @staticmethod
     def _make_parameters(start, end, options=None):

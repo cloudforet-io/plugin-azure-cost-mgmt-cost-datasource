@@ -2,6 +2,7 @@ import logging
 import os
 import requests
 import time
+import re
 
 from datetime import datetime
 from cloudforet.cost_analysis.conf.cost_conf import *
@@ -140,12 +141,26 @@ class AzureCostMgmtConnector(BaseConnector):
             _LOGGER.error(f'[ERROR] retry_request failed {e}')
             raise e
 
-    def make_scope(self, collect_unit, collect_type):
-        if 'subscription_id' == collect_type:
-            scope = SCOPE_MAP[collect_type].format(subscription_id=collect_unit)
-        else:
-            scope = SCOPE_MAP[collect_type].format(billing_account_name=self.billing_account_id, customer_id=collect_unit)
-        return scope
+    def _get_latest_api_version(self, secret_data, scope):
+        try:
+            url = f'https://management.azure.com/{scope}/providers/Microsoft.CostManagement/query?api-version=""'
+            headers = self._make_request_headers(secret_data)
+            response = requests.post(url=url, headers=headers)
+
+            response_json = response.json()
+            if error_json := response_json.get('error'):
+                error_msg = error_json.get('message', '')
+                api_versions = re.findall(r"'([^\']+)'", error_msg.split('.')[2].strip().strip("'")+"'")[0].split(',')
+                for api_version in reversed(api_versions):
+                    print(f'api version { api_version}')
+                    if 'preview' not in api_version:
+                        return api_version
+
+        except Exception as e:
+            _LOGGER.error(f'[ERROR] _get_latest_api_version {e}')
+            raise e
+
+
 
     @staticmethod
     def _get_sleep_time(response_headers):
