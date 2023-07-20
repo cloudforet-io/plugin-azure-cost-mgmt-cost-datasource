@@ -27,11 +27,16 @@ class JobManager(BaseManager):
         secret_type = options.get('secret_type', SECRET_TYPE_DEFAULT)
 
         if secret_type == 'MANUAL':
-            customer_tenants = secret_data.get('customer_tenants', self._get_tenants_from_billing_account())
-            if len(customer_tenants) == 0:
-                raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
+            billing_account_agreement_type = self.azure_cm_connector.get_billing_account().__dict__.get('agreement_type')
 
-            tasks = [{'task_options': {'customer_tenants': customer_tenants, 'collect_scope': 'customer_tenant_id', 'start': start_date}}]
+            if billing_account_agreement_type == 'MicrosoftPartnerAgreement':
+                customer_tenants = secret_data.get('customer_tenants', self._get_tenants_from_billing_account())
+                if len(customer_tenants) == 0:
+                    raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
+                tasks = [{'task_options': {'customer_tenants': customer_tenants, 'collect_scope': 'customer_tenant_id', 'start': start_date}}]
+            else:
+                tasks = [{'task_options': {'collect_scope': 'billing_account_id', 'start': start_date}}]
+
             changed = [{'start': changed_time}]
         elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
             subscription_id = secret_data.get('subscription_id', '')
