@@ -21,7 +21,7 @@ class CostManager(BaseManager):
         self._check_task_options(task_options)
 
         collect_scope = task_options['collect_scope']
-        customer_tenants = self._get_customer_tenant_id(task_options)
+        customer_tenants = self._get_customer_tenant_id(task_options, collect_scope)
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
@@ -38,8 +38,8 @@ class CostManager(BaseManager):
                 for response_stream in self.azure_cm_connector.query_http(scope, secret_data, parameters):
                     yield self._make_cost_data(results=response_stream, end=_end, tenant_id=customer_tenant_id)
                 end_time = time.time()
-                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} {customer_tenant_id} tenant is done")
-        print(f"{datetime.utcnow()} [INFO][get_data] all collect is done in {int(end_time - start_time)} seconds")
+                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} {customer_tenant_id} tenant collect is done")
+            print(f"{datetime.utcnow()} [INFO][get_data] all collect is done in {int(end_time - start_time)} seconds")
 
         yield []
 
@@ -122,8 +122,8 @@ class CostManager(BaseManager):
             benefit_name = result['BenefitName']
             additional_info['Azure Benefit Name'] = benefit_name
 
-            if result.get('PricingModel') == 'Reservation' and result['MeterCategory'] == '':
-                result['MeterCategory'] = self._set_product_from_benefit_name(benefit_name)
+            if result.get('PricingModel') == 'Reservation' and result['Product'] == '':
+                result['Product'] = self._set_product_from_benefit_name(benefit_name)
 
         if result.get('MeterSubcategory') != '' and result.get('MeterSubcategory'):
             additional_info['Azure Meter SubCategory'] = result.get('MeterSubcategory')
@@ -157,12 +157,14 @@ class CostManager(BaseManager):
             raise e
 
     @staticmethod
-    def _get_customer_tenant_id(task_options):
+    def _get_customer_tenant_id(task_options, collect_scope):
         customer_tenants = []
-        if task_options.get('customer_tenants'):
+        if 'tenant_id' in task_options:
+            customer_tenants.append(task_options['tenant_id'])
+        elif collect_scope == 'customer_tenant_id':
             customer_tenants.extend(task_options['customer_tenants'])
         else:
-            customer_tenants.append(task_options['tenant_id'])
+            customer_tenants.append('EA Agreement')
         return customer_tenants
 
     @staticmethod
