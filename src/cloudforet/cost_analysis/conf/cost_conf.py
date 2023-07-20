@@ -9,9 +9,10 @@ AGGREGATION_COST = {'totalCost': {'name': 'Cost', 'function': 'Sum'}}
 AGGREGATION_USAGE_QUANTITY = {'UsageQuantity': {'name': 'UsageQuantity', 'function': 'Sum'}}
 
 GROUPING = [
+    {'type': 'Dimension', 'name': 'Product'},
     {'type': 'Dimension', 'name': 'ResourceGroup'},
     {'type': 'Dimension', 'name': 'ResourceType'},
-    {'type': 'Dimension', 'name': 'ResourceId'},
+    # {'type': 'Dimension', 'name': 'ResourceId'},
     {'type': 'Dimension', 'name': 'ResourceLocation'},
     {'type': 'Dimension', 'name': 'SubscriptionId'},
     {'type': 'Dimension', 'name': 'SubscriptionName'},

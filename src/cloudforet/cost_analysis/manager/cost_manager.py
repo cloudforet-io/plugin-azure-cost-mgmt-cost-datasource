@@ -72,8 +72,7 @@ class CostManager(BaseManager):
         usage_unit = result.get('UnitOfMeasure', '')
         subscription_id = result.get('SubscriptionId', '')
         region_code = result.get('ResourceLocation', '')
-        product = result.get('MeterCategory', '')
-        resource = result.get('ResourceId', '')
+        product = result.get('Product', '')
         tags = {}  # self._convert_tag_str_to_dict(result.get('Tag'))
 
         if subscription_id == '':
@@ -90,7 +89,6 @@ class CostManager(BaseManager):
             'region_code': REGION_MAP.get(region_code, region_code),
             'account': subscription_id,
             'product': product,
-            'resource': resource,
             'tags': tags,
             'billed_at': billed_at,
             'additional_info': additional_info,
@@ -104,6 +102,9 @@ class CostManager(BaseManager):
 
         tenant_id = result.get('CustomerTenantId') if result.get('CustomerTenantId') else tenant_id
         additional_info['Azure Tenant ID'] = tenant_id
+
+        if result.get('MeterCategory') != '' and result.get('MeterCategory'):
+            additional_info['Azure Meter Category'] = meter_category
 
         if result.get('ResourceLocation') != '' and result.get('ResourceGroup'):
             additional_info['Azure Resource Group'] = result['ResourceGroup']
