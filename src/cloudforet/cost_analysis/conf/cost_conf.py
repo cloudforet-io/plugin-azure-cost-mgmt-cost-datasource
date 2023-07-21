@@ -9,7 +9,6 @@ AGGREGATION_COST = {'totalCost': {'name': 'Cost', 'function': 'Sum'}}
 AGGREGATION_USAGE_QUANTITY = {'UsageQuantity': {'name': 'UsageQuantity', 'function': 'Sum'}}
 
 GROUPING = [
-    {'type': 'Dimension', 'name': 'Product'},
     {'type': 'Dimension', 'name': 'ResourceGroup'},
     {'type': 'Dimension', 'name': 'ResourceType'},
     # {'type': 'Dimension', 'name': 'ResourceId'},
@@ -21,14 +20,20 @@ GROUPING = [
     {'type': 'Dimension', 'name': 'UnitOfMeasure'},
     {'type': 'Dimension', 'name': 'BenefitName'},
     {'type': 'Dimension', 'name': 'PricingModel'},
-    {'type': 'Dimension', 'name': 'MeterSubcategory'},
+    {'type': 'Dimension', 'name': 'MeterSubcategory'}
 ]
 
+
+GROUPING_EA_AGREEMENT_OPTION = [
+    {'type': 'Dimension', 'name': 'Department'},
+    {'type': 'Dimension', 'name': 'EnrollmentAccount'},
+]
 GROUPING_CUSTOMER_TENANT_OPTION = {'type': 'Dimension', 'name': 'CustomerTenantId'}
 GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
 
 REGION_MAP = {
-    'global': 'global',
+    'global': 'Global',
+    'unknown': 'Unknown',
     'ap east': 'eastasia',
     'ca central': 'canadacentral',
     'ca east': 'canadaeast',
