@@ -28,20 +28,21 @@ class JobManager(BaseManager):
 
         if secret_type == 'MANUAL':
             billing_account_agreement_type = self.azure_cm_connector.get_billing_account().__dict__.get('agreement_type')
-
             if billing_account_agreement_type == 'MicrosoftPartnerAgreement':
                 customer_tenants = secret_data.get('customer_tenants', self._get_tenants_from_billing_account())
                 if len(customer_tenants) == 0:
                     raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
-                tasks = [{'task_options': {'customer_tenants': customer_tenants, 'collect_scope': 'customer_tenant_id', 'start': start_date}}]
+                tasks = [{'task_options': {'start': start_date, 'account_agreement_type': billing_account_agreement_type,
+                                           'collect_scope': 'customer_tenant_id', 'customer_tenants': customer_tenants}}]
             else:
-                tasks = [{'task_options': {'collect_scope': 'billing_account_id', 'start': start_date}}]
-
+                tasks = [{'task_options': {'start': start_date, 'account_agreement_type': billing_account_agreement_type,
+                                           'collect_scope': 'billing_account_id'}}]
             changed = [{'start': changed_time}]
+
         elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
             subscription_id = secret_data.get('subscription_id', '')
             tenant_id = secret_data.get('tenant_id')
-            tasks = [{'task_options': {'subscription_id': subscription_id, 'tenant_id': tenant_id, 'collect_scope': 'subscription_id', 'start': start_date}}]
+            tasks = [{'task_options': {'collect_scope': 'subscription_id', 'start': start_date, 'subscription_id': subscription_id, 'tenant_id': tenant_id}}]
             changed = [{'start': changed_time}]
 
         else:

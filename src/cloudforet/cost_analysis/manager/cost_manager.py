@@ -21,6 +21,7 @@ class CostManager(BaseManager):
         self._check_task_options(task_options)
 
         collect_scope = task_options['collect_scope']
+        account_agreement_type = task_options.get('account_agreement_type')
         customer_tenants = self._get_customer_tenant_id(task_options, collect_scope)
         start = self._convert_date_format_to_utc(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -29,7 +30,7 @@ class CostManager(BaseManager):
         for time_period in monthly_time_period:
             _start = time_period['start']
             _end = time_period['end']
-            parameters = self._make_parameters(_start, _end, options)
+            parameters = self._make_parameters(_start, _end, account_agreement_type, options)
             start_time = time.time()
             print(f"{datetime.utcnow()} [INFO][get_data] all tenant is start to collect data from {_start} to {_end}")
             for idx, customer_tenant_id in enumerate(customer_tenants):
@@ -72,7 +73,7 @@ class CostManager(BaseManager):
         usage_unit = result.get('UnitOfMeasure', '')
         subscription_id = result.get('SubscriptionId', '')
         region_code = result.get('ResourceLocation', '')
-        product = result.get('Product', '')
+        product = result.get('MeterCategory', '')
         tags = {}  # self._convert_tag_str_to_dict(result.get('Tag'))
 
         if subscription_id == '':
@@ -103,9 +104,6 @@ class CostManager(BaseManager):
         tenant_id = result.get('CustomerTenantId') if result.get('CustomerTenantId') else tenant_id
         additional_info['Azure Tenant ID'] = tenant_id
 
-        if result.get('MeterCategory') != '' and result.get('MeterCategory'):
-            additional_info['Azure Meter Category'] = meter_category
-
         if result.get('ResourceLocation') != '' and result.get('ResourceGroup'):
             additional_info['Azure Resource Group'] = result['ResourceGroup']
 
@@ -122,8 +120,8 @@ class CostManager(BaseManager):
             benefit_name = result['BenefitName']
             additional_info['Azure Benefit Name'] = benefit_name
 
-            if result.get('PricingModel') == 'Reservation' and result['Product'] == '':
-                result['Product'] = self._set_product_from_benefit_name(benefit_name)
+            if result.get('PricingModel') == 'Reservation' and result['MeterCategory'] == '':
+                result['MeterCategory'] = self._set_product_from_benefit_name(benefit_name)
 
         if result.get('MeterSubcategory') != '' and result.get('MeterSubcategory'):
             additional_info['Azure Meter SubCategory'] = result.get('MeterSubcategory')
@@ -182,18 +180,18 @@ class CostManager(BaseManager):
         return scope
 
     @staticmethod
-    def _make_parameters(start, end, options=None):
+    def _make_parameters(start, end, account_agreement_type, options=None):
         parameters = {}
         aggregation = AGGREGATION_USAGE_QUANTITY
         grouping = GROUPING
+
+        if account_agreement_type == 'EnterpriseAgreement':
+            grouping.extend(GROUPING_EA_AGREEMENT_OPTION)
 
         if options.get('aggregation') == 'cost':
             aggregation = dict(aggregation, **AGGREGATION_COST)
         else:
             aggregation = dict(aggregation, **AGGREGATION_USD_COST)
-
-        if options.get('grouping') == 'tag':
-            grouping = grouping + [GROUPING_TAG_OPTION]
 
         parameters.update({
             'type': TYPE,
