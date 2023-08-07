@@ -188,18 +188,18 @@ class CostManager(BaseManager):
     @staticmethod
     def _make_parameters(start, end, account_agreement_type, options=None):
         parameters = {}
-        aggregation = AGGREGATION_USAGE_QUANTITY
+        aggregation = {}
         grouping = GROUPING
 
         if account_agreement_type == 'EnterpriseAgreement':
             grouping = [dimension for dimension in grouping if dimension['name'] != 'UnitOfMeasure']
             grouping.extend(GROUPING_EA_AGREEMENT_OPTION)
-            print(grouping)
 
         if options.get('aggregation') == 'cost':
             aggregation = dict(aggregation, **AGGREGATION_COST)
         else:
             aggregation = dict(aggregation, **AGGREGATION_USD_COST)
+        aggregation = dict(aggregation, **AGGREGATION_USAGE_QUANTITY)
 
         parameters.update({
             'type': TYPE,
