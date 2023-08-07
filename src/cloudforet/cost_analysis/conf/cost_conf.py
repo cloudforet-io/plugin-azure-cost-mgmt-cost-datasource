@@ -25,8 +25,8 @@ GROUPING = [
 
 
 GROUPING_EA_AGREEMENT_OPTION = [
-    {'type': 'Dimension', 'name': 'Department'},
-    {'type': 'Dimension', 'name': 'EnrollmentAccount'},
+    {'type': 'Dimension', 'name': 'DepartmentName'},
+    {'type': 'Dimension', 'name': 'EnrollmentAccountName'},
 ]
 GROUPING_CUSTOMER_TENANT_OPTION = {'type': 'Dimension', 'name': 'CustomerTenantId'}
 GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
