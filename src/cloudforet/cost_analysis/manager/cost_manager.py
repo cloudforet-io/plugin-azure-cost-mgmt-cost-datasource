@@ -128,6 +128,12 @@ class CostManager(BaseManager):
             if result.get('PricingModel') == 'OnDemand' and result.get('MeterCategory') == '':
                 result['MeterCategory'] = result.get('MeterSubcategory')
 
+        if result.get('DepartmentName') != '' and result.get('DepartmentName'):
+            additional_info['Azure Department Name'] = result['DepartmentName']
+
+        if result.get('EnrollmentAccountName') != '' and result.get('EnrollmentAccountName'):
+            additional_info['Azure Enrollment Account Name'] = result['EnrollmentAccountName']
+
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Azure Instance Type'] = result['Meter']
 
@@ -186,7 +192,9 @@ class CostManager(BaseManager):
         grouping = GROUPING
 
         if account_agreement_type == 'EnterpriseAgreement':
+            grouping = [dimension for dimension in grouping if dimension['name'] != 'UnitOfMeasure']
             grouping.extend(GROUPING_EA_AGREEMENT_OPTION)
+            print(grouping)
 
         if options.get('aggregation') == 'cost':
             aggregation = dict(aggregation, **AGGREGATION_COST)
@@ -325,8 +333,15 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _check_task_options(task_options):
-        if 'customer_tenants' not in task_options and 'subscription_id' not in task_options:
-            raise ERROR_REQUIRED_PARAMETER(key='task_options.customer_tenants or task_options.subscription_id')
+        if 'collect_scope' not in task_options:
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.collect_scope')
 
         if 'start' not in task_options:
             raise ERROR_REQUIRED_PARAMETER(key='task_options.start')
+
+        if task_options['collect_scope'] == 'subscription_id':
+            if 'subscription_id' not in task_options:
+                raise ERROR_REQUIRED_PARAMETER(key='task_options.subscription_id')
+        elif task_options['collect_scope'] == 'customer_tenants':
+            raise ERROR_REQUIRED_PARAMETER(key='task_options.customer_tenants')
+
