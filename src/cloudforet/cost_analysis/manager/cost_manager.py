@@ -72,7 +72,7 @@ class CostManager(BaseManager):
         usage_type = result.get('Meter', '')
         usage_unit = result.get('UnitOfMeasure', '')
         subscription_id = result.get('SubscriptionId', '')
-        region_code = result.get('ResourceLocation', '')
+        region_code = result.get('ResourceLocation', '').lower()
         product = result.get('MeterCategory', '')
         tags = {}  # self._convert_tag_str_to_dict(result.get('Tag'))
 
