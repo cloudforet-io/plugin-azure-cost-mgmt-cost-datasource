@@ -24,7 +24,7 @@
 클라우드포레에서 Azure Cost Management 플러그인을 사용위해 `spacectl`을 사용한 방식만을 지원하고 있습니다.
 플러그인을 사용하기 위해서 아래와 같은 정보가 필요합니다.
 
-- **billing_account_name**
+- **billing_account_id**
 - **client_id**
 - **client_secret**
 - **tenant_id**
@@ -53,10 +53,10 @@ name: azure_client_secret_for_cost_management
 service_type: billing.DataSource
 schema:
   properties:
-    billing_account_name:
+    billing_account_id:
       type: string
       minLength: 4
-      title: Billing Account Name
+      title: Billing Account Id
     client_id:
       type: string
       minLength: 4
@@ -70,7 +70,7 @@ schema:
       title: Tenant ID
       minLength: 4
   required:
-  - billing_account_name
+  - billing_account_id
   - tenant_id
   - client_id
   - client_secret

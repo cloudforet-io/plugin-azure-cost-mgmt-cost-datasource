@@ -5,7 +5,7 @@ Plugin for collecting Azure Cost management data
 
 ## Schema Data
 *Schema*
-- billing_account_name (str): 
+- billing_account_id (str): 
 - tenant_id (str):
 - client_id (str):
 - client_secret (str):
@@ -15,7 +15,7 @@ Plugin for collecting Azure Cost management data
 <pre>
 <code>
 {
-    "billing_account_name": "*****",
+    "billing_account_id": "*****",
     "tenant_id": "*****",
     "client_id": "*****",
     "client_secret": "*****"
