@@ -37,6 +37,7 @@ REGION_MAP = {
     'global': 'Global',
     'unknown': 'Unknown',
     'unassigned': 'Unassigned',
+    'intercontinental': 'Intercontinental',
     'ap east': 'eastasia',
     'ca central': 'canadacentral',
     'ca east': 'canadaeast',

@@ -23,7 +23,7 @@ class CostManager(BaseManager):
         collect_scope = task_options['collect_scope']
         account_agreement_type = task_options.get('account_agreement_type')
         customer_tenants = self._get_customer_tenant_id(task_options, collect_scope)
-        start = self._convert_date_format_to_utc(task_options['start'])
+        start = self._add_first_day_of_month(task_options['start'])
         end = datetime.utcnow().replace(tzinfo=timezone.utc)
 
         monthly_time_period = self._make_monthly_time_period(start, end)
@@ -66,7 +66,7 @@ class CostManager(BaseManager):
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
                                                                            results.get('properties').get('columns'))
             for cb_result in combined_results:
-                billed_date = self._set_billed_at(cb_result.get('UsageDate', end))
+                billed_date = self._set_billed_date(cb_result.get('UsageDate', end))
                 if not billed_date:
                     continue
 
@@ -159,7 +159,7 @@ class CostManager(BaseManager):
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
                                                                            results.get('properties').get('columns'))
             for cb_result in combined_results:
-                billed_date = self._set_billed_at(cb_result.get('UsageDate'))
+                billed_date = self._set_billed_date(cb_result.get('UsageDate'))
                 if not billed_date:
                     continue
 
@@ -277,7 +277,7 @@ class CostManager(BaseManager):
         return format(float(num_str), 'f')
 
     @staticmethod
-    def _set_billed_at(start):
+    def _set_billed_date(start):
         try:
             if isinstance(start, int):
                 start = str(start)
@@ -304,6 +304,10 @@ class CostManager(BaseManager):
             return False
 
         return True
+
+    @staticmethod
+    def _add_first_day_of_month(start_month):
+        return datetime.strptime(start_month, "%Y-%m").replace(day=1)
 
     @staticmethod
     def _convert_date_format_to_utc(date_format: str):
