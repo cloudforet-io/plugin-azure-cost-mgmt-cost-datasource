@@ -4,9 +4,11 @@ TYPE = 'ActualCost'
 TIMEFRAME = 'Custom'
 GRANULARITY = 'Daily'
 
-AGGREGATION_USD_COST = {'totalCostUSD': {'name': 'CostUSD', 'function': 'Sum'}}
-AGGREGATION_COST = {'totalCost': {'name': 'Cost', 'function': 'Sum'}}
-AGGREGATION_USAGE_QUANTITY = {'UsageQuantity': {'name': 'UsageQuantity', 'function': 'Sum'}}
+# AGGREGATION_USD_COST = {'totalCostUSD': {'name': 'CostUSD', 'function': 'Sum'}}
+AGGREGATION = {
+    'totalCost': {'name': 'Cost', 'function': 'Sum'},
+    'UsageQuantity': {'name': 'UsageQuantity', 'function': 'Sum'}
+}
 
 GROUPING = [
     {'type': 'Dimension', 'name': 'ResourceGroup'},
@@ -34,6 +36,7 @@ GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
 REGION_MAP = {
     'global': 'Global',
     'unknown': 'Unknown',
+    'unassigned': 'Unassigned',
     'ap east': 'eastasia',
     'ca central': 'canadacentral',
     'ca east': 'canadaeast',

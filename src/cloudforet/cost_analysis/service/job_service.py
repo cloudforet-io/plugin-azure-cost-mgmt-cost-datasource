@@ -17,7 +17,7 @@ class JobService(BaseService):
 
     @transaction
     @check_required(['options', 'secret_data'])
-    @change_timestamp_value(['start', 'last_synchronized_at'], timestamp_format='iso8601')
+    @change_timestamp_value(['last_synchronized_at'], timestamp_format='iso8601')
     def get_tasks(self, params):
         """Get Job Tasks
 

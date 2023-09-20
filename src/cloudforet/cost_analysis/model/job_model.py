@@ -15,7 +15,7 @@ class TaskOptionsWithCustomerTenants(Model):
 
 
 class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenants):
-    start = StringType(required=True)
+    start = StringType(required=True, max_length=7)
     collect_scope = StringType(choices=['subscription_id', 'billing_account_id', 'customer_tenant_id'], required=True)
     account_agreement_type = StringType(choices=['EnterpriseAgreement', 'MicrosoftPartnerAgreement', 'MicrosoftCustomerAgreement','MicrosoftOnlineServicesProgram'], serialize_when_none=False)
 
@@ -25,8 +25,8 @@ class Task(Model):
 
 
 class Changed(Model):
-    start = DateTimeType(required=True)
-    end = DateTimeType(default=None)
+    start = StringType(required=True, max_length=7)
+    end = StringType(default=None, max_length=7)
     filter = DictType(StringType, default={})
 
 
