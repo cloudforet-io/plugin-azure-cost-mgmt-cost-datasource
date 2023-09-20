@@ -74,7 +74,7 @@ class AzureCostMgmtConnector(BaseConnector):
             },
             'dataset': {
                 'granularity': GRANULARITY,
-                'aggregation': dict(AGGREGATION_USAGE_QUANTITY, **AGGREGATION_COST),
+                'aggregation': AGGREGATION,
                 'grouping': GROUPING
             }
         }
@@ -88,7 +88,7 @@ class AzureCostMgmtConnector(BaseConnector):
             while self.next_link:
                 url = self.next_link
 
-                headers = self._make_request_headers(secret_data, client_type=secret_data.get('client_id'))
+                headers = self._make_request_headers(client_type=secret_data.get('client_id'))
                 response = requests.post(url=url, headers=headers, json=parameters)
                 response_json = response.json()
 
@@ -105,13 +105,13 @@ class AzureCostMgmtConnector(BaseConnector):
         billing_account_name = self.billing_account_id
         return self.billing_client.billing_subscriptions.list_by_billing_account(billing_account_name=billing_account_name)
 
-    def _make_request_headers(self, secret_data, client_type=None):
-        access_token = self._get_access_token(secret_data)
+    def _make_request_headers(self, client_type=None):
+        access_token = self._get_access_token()
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
         }
-        if client_type is not None:
+        if client_type:
             headers['ClientType'] = client_type
 
         return headers
@@ -152,15 +152,12 @@ class AzureCostMgmtConnector(BaseConnector):
                 error_msg = error_json.get('message', '')
                 api_versions = re.findall(r"'([^\']+)'", error_msg.split('.')[2].strip().strip("'")+"'")[0].split(',')
                 for api_version in reversed(api_versions):
-                    print(f'api version { api_version}')
                     if 'preview' not in api_version:
                         return api_version
 
         except Exception as e:
             _LOGGER.error(f'[ERROR] _get_latest_api_version {e}')
             raise e
-
-
 
     @staticmethod
     def _get_sleep_time(response_headers):
@@ -174,21 +171,15 @@ class AzureCostMgmtConnector(BaseConnector):
         return sleep_time + 1
 
     @staticmethod
-    def _get_access_token(secret_data):
-        tenant_id = secret_data.get('tenant_id', '')
-
-        get_token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/token'
-        get_token_data = {
-            'client_id': secret_data.get('client_id', ''),
-            'client_secret': secret_data.get('client_secret', ''),
-            'grant_type': 'client_credentials',
-            'resource': 'https://management.azure.com/'
-        }
-        get_token_response = requests.post(url=get_token_url, data=get_token_data)
-        access_token = get_token_response.json().get('access_token')
-        if access_token is None:
-            raise ERROR_INVALID_TOKEN(token=get_token_response.json())
-        return access_token
+    def _get_access_token():
+        try:
+            credential = DefaultAzureCredential(logging_enable=True)
+            scopes = ["https://management.azure.com/.default"]
+            token_info = credential.get_token(*scopes)
+            return token_info.token
+        except Exception as e:
+            _LOGGER.error(f'[ERROR] _get_access_token :{e}')
+            raise ERROR_INVALID_TOKEN(token=e)
 
     @staticmethod
     def _check_secret_data(secret_data):
@@ -203,3 +194,20 @@ class AzureCostMgmtConnector(BaseConnector):
 
         if 'client_secret' not in secret_data:
             raise ERROR_REQUIRED_PARAMETER(key='secret_data.client_secret')
+
+    # @staticmethod
+    # def _get_access_token(secret_data):
+    #     tenant_id = secret_data.get('tenant_id', '')
+    #
+    #     get_token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/token'
+    #     get_token_data = {
+    #         'client_id': secret_data.get('client_id', ''),
+    #         'client_secret': secret_data.get('client_secret', ''),
+    #         'grant_type': 'client_credentials',
+    #         'resource': 'https://management.azure.com/'
+    #     }
+    #     get_token_response = requests.post(url=get_token_url, data=get_token_data)
+    #     access_token = get_token_response.json().get('access_token')
+    #     if access_token is None:
+    #         raise ERROR_INVALID_TOKEN(token=get_token_response.json())
+    #     return access_token

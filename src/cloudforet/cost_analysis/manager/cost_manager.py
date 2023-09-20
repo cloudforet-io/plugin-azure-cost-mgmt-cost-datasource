@@ -45,16 +45,32 @@ class CostManager(BaseManager):
         yield []
 
     def _make_cost_data(self, results, end, tenant_id=None):
+        """ Source Data Model
+        class QueryResult Class
+            id: str,
+            name: str,
+            type: str,
+            location: str,
+            sku: str,
+            eTag: str,
+            tags: dict,
+            properties: {
+                nextLink: str,
+                columns: list,
+                rows: list
+            }
+        """
+
         costs_data = []
         try:
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
                                                                            results.get('properties').get('columns'))
             for cb_result in combined_results:
-                billed_at = self._set_billed_at(cb_result.get('UsageDate', end))
-                if not billed_at:
+                billed_date = self._set_billed_at(cb_result.get('UsageDate', end))
+                if not billed_date:
                     continue
 
-                data = self._make_data_info(cb_result, billed_at, tenant_id)
+                data = self._make_data_info(cb_result, billed_date, tenant_id)
                 costs_data.append(data)
 
         except Exception as e:
@@ -63,35 +79,26 @@ class CostManager(BaseManager):
 
         return costs_data
 
-    def _make_data_info(self, result, billed_at, tenant_id=None):
+    def _make_data_info(self, result, billed_date, tenant_id=None):
         additional_info = self._get_additional_info(result, tenant_id)
         cost = self._convert_str_to_float_format(result.get('Cost', 0))
-        usd_cost = self._convert_str_to_float_format(result.get('CostUSD', 0))
-        currency = 'USD'
         usage_quantity = self._convert_str_to_float_format(result.get('UsageQuantity', 0))
         usage_type = result.get('Meter', '')
         usage_unit = result.get('UnitOfMeasure', '')
-        subscription_id = result.get('SubscriptionId', '')
         region_code = result.get('ResourceLocation', '').lower()
         product = result.get('MeterCategory', '')
         tags = {}  # self._convert_tag_str_to_dict(result.get('Tag'))
 
-        if subscription_id == '':
-            subscription_id = 'Shared'
-
         data = {
-            'cost': usd_cost,
-            # 'usd_cost': usd_cost,
-            'currency': currency,
+            'cost': cost,
             'usage_quantity': usage_quantity,
             'usage_type': usage_type,
-            # 'usage_unit': usage_unit,
+            'usage_unit': usage_unit,
             'provider': 'azure',
             'region_code': REGION_MAP.get(region_code, region_code),
-            'account': subscription_id,
             'product': product,
             'tags': tags,
-            'billed_at': billed_at,
+            'billed_date': billed_date,
             'additional_info': additional_info,
         }
 
@@ -99,43 +106,50 @@ class CostManager(BaseManager):
 
     def _get_additional_info(self, result, tenant_id=None):
         additional_info = {}
-        meter_category = result.get('MeterCategory', '')
 
+        meter_category = result.get('MeterCategory', '')
         tenant_id = result.get('CustomerTenantId') if result.get('CustomerTenantId') else tenant_id
-        additional_info['Azure Tenant ID'] = tenant_id
+
+        additional_info['Tenant ID'] = tenant_id
+        additional_info['Currency'] = result.get('Currency', 'USD')
+        additional_info['Subscription Id'] = result.get('SubscriptionId', 'Shared')
+
+        if meter_category == 'Virtual Machines' and 'Meter' in result:
+            additional_info['Instance Type'] = result['Meter']
 
         if result.get('ResourceLocation') != '' and result.get('ResourceGroup'):
-            additional_info['Azure Resource Group'] = result['ResourceGroup']
+            additional_info['Resource Group'] = result['ResourceGroup']
 
         if result.get('ResourceType') != '' and result.get('ResourceType'):
-            additional_info['Azure Resource Type'] = result['ResourceType']
+            additional_info['Resource Type'] = result['ResourceType']
 
         if result.get('SubscriptionName') != '' and result.get('SubscriptionName'):
-            additional_info['Azure Subscription Name'] = result['SubscriptionName']
+            additional_info['Subscription Name'] = result['SubscriptionName']
 
         if result.get('PricingModel') != '' and result.get('PricingModel'):
-            additional_info['Azure Pricing Model'] = result['PricingModel']
+            additional_info['Pricing Model'] = result['PricingModel']
 
         if result.get('BenefitName') != '' and result.get('BenefitName'):
             benefit_name = result['BenefitName']
-            additional_info['Azure Benefit Name'] = benefit_name
+            additional_info['Benefit Name'] = benefit_name
 
             if result.get('PricingModel') == 'Reservation' and result['MeterCategory'] == '':
                 result['MeterCategory'] = self._set_product_from_benefit_name(benefit_name)
 
         if result.get('MeterSubcategory') != '' and result.get('MeterSubcategory'):
-            additional_info['Azure Meter SubCategory'] = result.get('MeterSubcategory')
+            additional_info['Meter SubCategory'] = result.get('MeterSubcategory')
             if result.get('PricingModel') == 'OnDemand' and result.get('MeterCategory') == '':
                 result['MeterCategory'] = result.get('MeterSubcategory')
 
         if result.get('DepartmentName') != '' and result.get('DepartmentName'):
-            additional_info['Azure Department Name'] = result['DepartmentName']
+            additional_info['Department Name'] = result['DepartmentName']
 
         if result.get('EnrollmentAccountName') != '' and result.get('EnrollmentAccountName'):
-            additional_info['Azure Enrollment Account Name'] = result['EnrollmentAccountName']
+            additional_info['Enrollment Account Name'] = result['EnrollmentAccountName']
 
-        if meter_category == 'Virtual Machines' and 'Meter' in result:
-            additional_info['Azure Instance Type'] = result['Meter']
+        if result.get('ResourceId') != '' and result.get('ResourceId'):
+            additional_info['Resource ID'] = result['ResourceId']
+            additional_info['Resource Name'] = result['ResourceId'].split('/')[-1]
 
         return additional_info
 
@@ -145,11 +159,11 @@ class CostManager(BaseManager):
             combined_results = self._combine_rows_and_columns_from_results(results.get('properties').get('rows'),
                                                                            results.get('properties').get('columns'))
             for cb_result in combined_results:
-                billed_at = self._set_billed_at(cb_result.get('UsageDate'))
-                if not billed_at:
+                billed_date = self._set_billed_at(cb_result.get('UsageDate'))
+                if not billed_date:
                     continue
 
-                data = self._make_data_info(cb_result, billed_at)
+                data = self._make_data_info(cb_result, billed_date)
                 costs_data_without_tag.append(data)
 
             for idx, cost_data in enumerate(costs_data):
@@ -188,18 +202,12 @@ class CostManager(BaseManager):
     @staticmethod
     def _make_parameters(start, end, account_agreement_type, options=None):
         parameters = {}
-        aggregation = {}
+        aggregation = AGGREGATION
         grouping = GROUPING
 
         if account_agreement_type == 'EnterpriseAgreement':
             grouping = [dimension for dimension in grouping if dimension['name'] != 'UnitOfMeasure']
             grouping.extend(GROUPING_EA_AGREEMENT_OPTION)
-
-        if options.get('aggregation') == 'cost':
-            aggregation = dict(aggregation, **AGGREGATION_COST)
-        else:
-            aggregation = dict(aggregation, **AGGREGATION_USD_COST)
-        aggregation = dict(aggregation, **AGGREGATION_USAGE_QUANTITY)
 
         parameters.update({
             'type': TYPE,
@@ -273,13 +281,13 @@ class CostManager(BaseManager):
         try:
             if isinstance(start, int):
                 start = str(start)
-                formatted_start = f"{start[:4]}-{start[4:6]}-{start[6:]}"
+                formatted_start = datetime.strptime(start, "%Y%m%d")
             elif isinstance(start, datetime):
                 return start
             else:
                 formatted_start = start
 
-            return datetime.strptime(formatted_start, "%Y-%m-%d")
+            return datetime.strftime(formatted_start, "%Y-%m-%d")
         except Exception as e:
             _LOGGER.error(f'[_set_billed_at] set billed_at error: {e}', exc_info=True)
             return None
