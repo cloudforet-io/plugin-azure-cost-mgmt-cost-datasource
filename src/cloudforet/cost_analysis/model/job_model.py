@@ -10,11 +10,11 @@ class TaskOptionsWithSubscription(Model):
     tenant_id = StringType(serialize_when_none=False)
 
 
-class TaskOptionsWithCustomerTenants(Model):
-    customer_tenants = ListType(StringType, serialize_when_none=False)
+class TaskOptionsWithCustomerTenant(Model):
+    customer_tenant = StringType(serialize_when_none=False)
 
 
-class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenants):
+class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenant):
     start = StringType(required=True, max_length=7)
     collect_scope = StringType(choices=['subscription_id', 'billing_account_id', 'customer_tenant_id'], required=True)
     account_agreement_type = StringType(choices=['EnterpriseAgreement', 'MicrosoftPartnerAgreement', 'MicrosoftCustomerAgreement','MicrosoftOnlineServicesProgram'], serialize_when_none=False)
