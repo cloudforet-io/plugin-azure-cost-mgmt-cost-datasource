@@ -13,7 +13,7 @@ AGGREGATION = {
 GROUPING = [
     {'type': 'Dimension', 'name': 'ResourceGroup'},
     {'type': 'Dimension', 'name': 'ResourceType'},
-    {'type': 'Dimension', 'name': 'ResourceId'},
+    # {'type': 'Dimension', 'name': 'ResourceId'},
     {'type': 'Dimension', 'name': 'ResourceLocation'},
     {'type': 'Dimension', 'name': 'SubscriptionId'},
     {'type': 'Dimension', 'name': 'SubscriptionName'},
