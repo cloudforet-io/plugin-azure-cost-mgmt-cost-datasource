@@ -6,7 +6,6 @@ import re
 
 from datetime import datetime
 from cloudforet.cost_analysis.conf.cost_conf import *
-from spaceone.core import utils
 from spaceone.core.connector import BaseConnector
 from spaceone.core.error import *
 from cloudforet.cost_analysis.error.cost import *
@@ -194,20 +193,3 @@ class AzureCostMgmtConnector(BaseConnector):
 
         if 'client_secret' not in secret_data:
             raise ERROR_REQUIRED_PARAMETER(key='secret_data.client_secret')
-
-    # @staticmethod
-    # def _get_access_token(secret_data):
-    #     tenant_id = secret_data.get('tenant_id', '')
-    #
-    #     get_token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/token'
-    #     get_token_data = {
-    #         'client_id': secret_data.get('client_id', ''),
-    #         'client_secret': secret_data.get('client_secret', ''),
-    #         'grant_type': 'client_credentials',
-    #         'resource': 'https://management.azure.com/'
-    #     }
-    #     get_token_response = requests.post(url=get_token_url, data=get_token_data)
-    #     access_token = get_token_response.json().get('access_token')
-    #     if access_token is None:
-    #         raise ERROR_INVALID_TOKEN(token=get_token_response.json())
-    #     return access_token

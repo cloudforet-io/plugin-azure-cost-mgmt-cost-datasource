@@ -19,13 +19,11 @@ class JobManager(BaseManager):
     def get_tasks(self, options, secret_data, schema, start, last_synchronized_at, domain_id):
 
         start_month = self._get_start_month(start, last_synchronized_at)
-        print(f'tart_month {start_month}=======')
 
         self.azure_cm_connector.create_session(options, secret_data, schema)
         secret_type = options.get('secret_type', SECRET_TYPE_DEFAULT)
 
         if secret_type == 'MANUAL':
-            print(self.azure_cm_connector.get_billing_account())
             billing_account_info = self.azure_cm_connector.get_billing_account()
             billing_account_agreement_type = getattr(billing_account_info, 'agreement_type', '')
 
