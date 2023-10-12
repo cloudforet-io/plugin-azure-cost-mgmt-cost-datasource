@@ -180,7 +180,7 @@ class CostManager(BaseManager):
         if 'tenant_id' in task_options:
             customer_tenants.append(task_options['tenant_id'])
         elif collect_scope == 'customer_tenant_id':
-            customer_tenants.extend(task_options['customer_tenants'])
+            customer_tenants.append(task_options['customer_tenant'])
         else:
             customer_tenants.append('EA Agreement')
         return customer_tenants

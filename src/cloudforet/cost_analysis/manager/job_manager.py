@@ -28,15 +28,22 @@ class JobManager(BaseManager):
             billing_account_agreement_type = getattr(billing_account_info, 'agreement_type', '')
 
             if billing_account_agreement_type == 'MicrosoftPartnerAgreement':
+                tasks = []
+                changed = []
                 customer_tenants = secret_data.get('customer_tenants', self._get_tenants_from_billing_account())
                 if len(customer_tenants) == 0:
                     raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
-                tasks = [{'task_options': {'start': start_month, 'account_agreement_type': billing_account_agreement_type,
-                                           'collect_scope': 'customer_tenant_id', 'customer_tenants': customer_tenants}}]
+
+                for customer_tenant in customer_tenants:
+                    tasks.append({'task_options': {'start': start_month,
+                                                   'account_agreement_type': billing_account_agreement_type,
+                                                   'collect_scope': 'customer_tenant_id',
+                                                   'customer_tenant': customer_tenant}})
+                    changed.append({'start': start_month})
             else:
                 tasks = [{'task_options': {'start': start_month, 'account_agreement_type': billing_account_agreement_type,
                                            'collect_scope': 'billing_account_id'}}]
-            changed = [{'start': start_month}]
+                changed = [{'start': start_month}]
 
         elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
             subscription_id = secret_data.get('subscription_id', '')
