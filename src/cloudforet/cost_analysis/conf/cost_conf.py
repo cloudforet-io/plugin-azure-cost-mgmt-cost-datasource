@@ -13,7 +13,6 @@ AGGREGATION = {
 GROUPING = [
     {'type': 'Dimension', 'name': 'ResourceGroup'},
     {'type': 'Dimension', 'name': 'ResourceType'},
-    {'type': 'Dimension', 'name': 'ResourceId'},
     {'type': 'Dimension', 'name': 'ResourceLocation'},
     {'type': 'Dimension', 'name': 'SubscriptionId'},
     {'type': 'Dimension', 'name': 'SubscriptionName'},
@@ -32,6 +31,7 @@ GROUPING_EA_AGREEMENT_OPTION = [
 ]
 GROUPING_CUSTOMER_TENANT_OPTION = {'type': 'Dimension', 'name': 'CustomerTenantId'}
 GROUPING_TAG_OPTION = {'type': 'Tag', 'name': ''}
+GROUPING_RESOURCE_ID_OPTION = {'type': 'Dimension', 'name': 'ResourceId'}
 
 REGION_MAP = {
     'global': 'Global',

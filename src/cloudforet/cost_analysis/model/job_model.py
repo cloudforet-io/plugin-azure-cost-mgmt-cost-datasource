@@ -1,7 +1,6 @@
 from schematics.models import Model
-from schematics.types import ListType, IntType, DateTimeType, StringType, DictType
+from schematics.types import ListType, StringType, DictType
 from schematics.types.compound import ModelType
-# todo: change pydantic
 __all__ = ['Tasks']
 
 

@@ -2,7 +2,9 @@ import logging
 import os
 import requests
 import time
-import re
+import pandas as pd
+import numpy as np
+from io import StringIO
 
 from datetime import datetime
 from cloudforet.cost_analysis.conf.cost_conf import *
@@ -16,6 +18,8 @@ from azure.mgmt.costmanagement import CostManagementClient
 __all__ = ['AzureCostMgmtConnector']
 
 _LOGGER = logging.getLogger(__name__)
+
+_PAGE_SIZE = 1000
 
 
 class AzureCostMgmtConnector(BaseConnector):
@@ -61,24 +65,6 @@ class AzureCostMgmtConnector(BaseConnector):
         billing_account_info = self.billing_client.billing_accounts.get(billing_account_name=billing_account_name)
         return billing_account_info
 
-    def query(self, customer_id, start, end):
-        billing_account_id = self.billing_account_id
-        scope = f'providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{customer_id}'
-        parameters = {
-            'type': TYPE,
-            'timeframe': TIMEFRAME,
-            'timePeriod': {
-                'from': start.isoformat(),
-                'to': end.isoformat()
-            },
-            'dataset': {
-                'granularity': GRANULARITY,
-                'aggregation': AGGREGATION,
-                'grouping': GROUPING
-            }
-        }
-        return self.cost_mgmt_client.query.usage(scope=scope, parameters=parameters)
-
     def query_http(self, scope, secret_data, parameters, **kwargs):
         try:
             api_version = '2023-03-01'
@@ -99,6 +85,40 @@ class AzureCostMgmtConnector(BaseConnector):
                 yield response_json
         except Exception as e:
             raise ERROR_UNKNOWN(message=f'[ERROR] query_http {e}')
+
+    def begin_create_operation(self, scope, parameters):
+        try:
+            content_type = 'application/json'
+            response = self.cost_mgmt_client.generate_cost_details_report.begin_create_operation(scope=scope,
+                                                                                                 parameters=parameters,
+                                                                                                 content_type=content_type)
+
+            result = self.convert_nested_dictionary(response.result())
+            blobs = result.get('blobs', [])
+            _LOGGER.debug(f'[begin_create_operation] csv_file_link: {blobs}')
+            return blobs
+
+        except Exception as e:
+            _LOGGER.error(f'[begin_create_operation] error message: {e}')
+            raise ERROR_UNKNOWN(message=f'[ERROR] begin_create_operation failed')
+
+    def get_cost_data(self, blobs):
+        for blob in blobs:
+            cost_csv = self._download_cost_data(blob)
+
+            df = pd.read_csv(StringIO(cost_csv))
+            df = df.replace({np.nan: None})
+
+            costs_data = df.to_dict('records')
+
+            _LOGGER.debug(f'[get_cost_data] costs count: {len(costs_data)}')
+
+            # Paginate
+            page_count = int(len(costs_data) / _PAGE_SIZE) + 1
+
+            for page_num in range(page_count):
+                offset = _PAGE_SIZE * page_num
+                yield costs_data[offset:offset + _PAGE_SIZE]
 
     def list_by_billing_account(self):
         billing_account_name = self.billing_account_id
@@ -140,22 +160,36 @@ class AzureCostMgmtConnector(BaseConnector):
             _LOGGER.error(f'[ERROR] retry_request failed {e}')
             raise e
 
-    def _get_latest_api_version(self, secret_data, scope):
+    def convert_nested_dictionary(self, cloud_svc_object):
+        cloud_svc_dict = {}
+        if hasattr(cloud_svc_object, '__dict__'):  # if cloud_svc_object is not a dictionary type but has dict method
+            cloud_svc_dict = cloud_svc_object.__dict__
+        elif isinstance(cloud_svc_object, dict):
+            cloud_svc_dict = cloud_svc_object
+        elif not isinstance(cloud_svc_object, list):  # if cloud_svc_object is one of type like int, float, char, ...
+            return cloud_svc_object
+
+        # if cloud_svc_object is dictionary type
+        for key, value in cloud_svc_dict.items():
+            if hasattr(value, '__dict__') or isinstance(value, dict):
+                cloud_svc_dict[key] = self.convert_nested_dictionary(value)
+            if 'azure' in str(type(value)):
+                cloud_svc_dict[key] = self.convert_nested_dictionary(value)
+            elif isinstance(value, list):
+                value_list = []
+                for v in value:
+                    value_list.append(self.convert_nested_dictionary(v))
+                cloud_svc_dict[key] = value_list
+
+        return cloud_svc_dict
+
+    @staticmethod
+    def _download_cost_data(blob: dict) -> str:
         try:
-            url = f'https://management.azure.com/{scope}/providers/Microsoft.CostManagement/query?api-version=""'
-            headers = self._make_request_headers(secret_data)
-            response = requests.post(url=url, headers=headers)
-
-            response_json = response.json()
-            if error_json := response_json.get('error'):
-                error_msg = error_json.get('message', '')
-                api_versions = re.findall(r"'([^\']+)'", error_msg.split('.')[2].strip().strip("'")+"'")[0].split(',')
-                for api_version in reversed(api_versions):
-                    if 'preview' not in api_version:
-                        return api_version
-
+            response = requests.get(blob.get('blob_link'))
+            return response.text
         except Exception as e:
-            _LOGGER.error(f'[ERROR] _get_latest_api_version {e}')
+            _LOGGER.error(f'[_download_cost_data] download error: {e}', exc_info=True)
             raise e
 
     @staticmethod
