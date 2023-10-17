@@ -3,4 +3,10 @@ name: "[Push] Build dev"
 on:
   workflow_dispatch:
 
-# deprecated
+jobs:
+  none:
+    run-on: ubuntu-latest
+    steps:
+      - name: none
+
+# deprecated workflow
