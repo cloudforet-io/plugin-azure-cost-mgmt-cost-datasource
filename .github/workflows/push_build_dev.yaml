@@ -3,6 +3,4 @@ name: "[Push] Build dev"
 on:
   workflow_dispatch:
 
-jobs:
-
 # deprecated
