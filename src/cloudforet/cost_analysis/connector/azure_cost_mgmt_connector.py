@@ -106,7 +106,7 @@ class AzureCostMgmtConnector(BaseConnector):
         for blob in blobs:
             cost_csv = self._download_cost_data(blob)
 
-            df = pd.read_csv(StringIO(cost_csv))
+            df = pd.read_csv(StringIO(cost_csv), low_memory=False)
             df = df.replace({np.nan: None})
 
             costs_data = df.to_dict('records')

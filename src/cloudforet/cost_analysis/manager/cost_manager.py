@@ -32,16 +32,16 @@ class CostManager(BaseManager):
             parameters = self._make_parameters(_start, _end, options)
 
             start_time = time.time()
-            print(f"{datetime.utcnow()} [INFO][get_data] start to collect data from {_start} to {_end}")
+            _LOGGER.info(f'[get_data] start to collect data from {_start} to {_end}')
             for idx, tenant_id in enumerate(tenant_ids):
                 scope = self._make_scope(secret_data, task_options, collect_scope, tenant_id)
                 blobs = self.azure_cm_connector.begin_create_operation(scope, parameters)
                 response_stream = self.azure_cm_connector.get_cost_data(blobs)
                 for results in response_stream:
                     yield self._make_cost_data(results=results, end=_end, tenant_id=tenant_id, options=options)
-                print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} {tenant_id} tenant collect is done")
+                _LOGGER.info(f'[get_data] #{idx+1} {tenant_id} tenant collect is done')
             end_time = time.time()
-            print(f"{datetime.utcnow()} [INFO][get_data] all collect is done in {int(end_time - start_time)} seconds")
+            _LOGGER.info(f'[get_data] all collect is done in {int(end_time - start_time)} seconds')
         yield []
 
     def _make_cost_data(self, results, end, options, tenant_id=None):
@@ -101,9 +101,6 @@ class CostManager(BaseManager):
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Instance Type'] = result['meter']
-
-        if result.get('resourcelocation') != '' and result.get('resourcelocation'):
-            additional_info['Resource Location'] = result['resourcelocation']
 
         if result.get('resourcegroupname') != '' and result.get('resourcegroupname'):
             additional_info['Resource Group'] = result['resourcegroupname']
@@ -185,13 +182,20 @@ class CostManager(BaseManager):
         return scope
 
     @staticmethod
-    def _convert_tags_str_to_dict(tags: str):
+    def _convert_tags_str_to_dict(tags_str: str):
         try:
-            if tags is None:
+            if tags_str is None:
                 return {}
-            return json.loads(tags)
+
+            if tags_str[0] != '{' and tags_str[:-1] != '}':
+                tags_str = '{' + tags_str + '}'
+
+            tags = json.loads(tags_str)
+            return tags
         except Exception as e:
-            _LOGGER.error(f'[_convert_tags_str_to_dict] tags : {tags} {e}')
+            print(type(tags_str))
+            print(tags_str)
+            _LOGGER.error(f'[_convert_tags_str_to_dict] tags : {tags_str} {e}')
             return {}
 
     @staticmethod
