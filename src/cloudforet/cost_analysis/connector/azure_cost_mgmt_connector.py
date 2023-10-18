@@ -19,7 +19,7 @@ __all__ = ['AzureCostMgmtConnector']
 
 _LOGGER = logging.getLogger(__name__)
 
-_PAGE_SIZE = 1000
+_PAGE_SIZE = 2000
 
 
 class AzureCostMgmtConnector(BaseConnector):

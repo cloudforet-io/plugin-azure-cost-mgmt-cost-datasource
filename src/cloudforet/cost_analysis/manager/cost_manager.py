@@ -42,9 +42,7 @@ class CostManager(BaseManager):
                 print(f"{datetime.utcnow()} [INFO][get_data] #{idx+1} {tenant_id} tenant collect is done")
             end_time = time.time()
             print(f"{datetime.utcnow()} [INFO][get_data] all collect is done in {int(end_time - start_time)} seconds")
-
-
-        yield  []
+        yield []
 
     def _make_cost_data(self, results, end, options, tenant_id=None):
         """ Source Data Model
@@ -188,10 +186,13 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _convert_tags_str_to_dict(tags: str):
-        if tags is None:
+        try:
+            if tags is None:
+                return {}
+            return json.loads(tags)
+        except Exception as e:
+            _LOGGER.error(f'[_convert_tags_str_to_dict] tags : {tags} {e}')
             return {}
-        json_str = '{' + tags + '}'
-        return json.loads(json_str)
 
     @staticmethod
     def _set_product_from_benefit_name(benefit_name):
