@@ -52,6 +52,10 @@ class CostManager(BaseManager):
         try:
             for result in results:
                 result = {key.lower(): value for key, value in result.items()}
+
+                if result.get('invoiceid') is None:
+                    continue
+
                 billed_date = self._set_billed_date(result.get('date', end))
                 if not billed_date:
                     continue
@@ -142,6 +146,9 @@ class CostManager(BaseManager):
 
         if result.get('unitprice') != '' and result.get('unitprice'):
             additional_info['Unit Price'] = result['unitprice']
+
+        if result.get('customername') != '' and result.get('customername'):
+            additional_info['Customer Name'] = result['customername']
 
         return additional_info
 
