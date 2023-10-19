@@ -73,7 +73,7 @@ class CostManager(BaseManager):
         usage_quantity = self._convert_str_to_float_format(result.get('quantity', 0))
         usage_type = result.get('metername', '')
         usage_unit = result.get('unitofmeasure', '')
-        region_code = result.get('resourcelocation', '')
+        region_code = self._get_region_code(result.get('resourcelocation', ''))
         product = result.get('metercategory', '')
         tags = self._convert_tags_str_to_dict(result.get('tags', {}))
 
@@ -154,6 +154,10 @@ class CostManager(BaseManager):
         return additional_info
 
     @staticmethod
+    def _get_region_code(resource_location):
+        return resource_location.lower() if resource_location else resource_location
+
+    @staticmethod
     def _make_parameters(start, end, options):
         parameters = {
             "metric": "ActualCost",
@@ -190,7 +194,7 @@ class CostManager(BaseManager):
         return scope
 
     @staticmethod
-    def _convert_tags_str_to_dict(tags_str: str):
+    def _convert_tags_str_to_dict(tags_str):
         try:
             if tags_str is None:
                 return {}
