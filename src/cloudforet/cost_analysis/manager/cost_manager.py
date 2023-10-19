@@ -36,6 +36,7 @@ class CostManager(BaseManager):
             for idx, tenant_id in enumerate(tenant_ids):
                 scope = self._make_scope(secret_data, task_options, collect_scope, tenant_id)
                 blobs = self.azure_cm_connector.begin_create_operation(scope, parameters)
+
                 response_stream = self.azure_cm_connector.get_cost_data(blobs)
                 for results in response_stream:
                     yield self._make_cost_data(results=results, end=_end, tenant_id=tenant_id, options=options)
@@ -52,9 +53,6 @@ class CostManager(BaseManager):
         try:
             for result in results:
                 result = {key.lower(): value for key, value in result.items()}
-
-                if result.get('invoiceid') is None:
-                    continue
 
                 billed_date = self._set_billed_date(result.get('date', end))
                 if not billed_date:
@@ -75,7 +73,7 @@ class CostManager(BaseManager):
         usage_quantity = self._convert_str_to_float_format(result.get('quantity', 0))
         usage_type = result.get('metername', '')
         usage_unit = result.get('unitofmeasure', '')
-        region_code = result.get('resourcelocation', '').lower()
+        region_code = result.get('resourcelocation', '')
         product = result.get('metercategory', '')
         tags = self._convert_tags_str_to_dict(result.get('tags', {}))
 
@@ -149,6 +147,9 @@ class CostManager(BaseManager):
 
         if result.get('customername') != '' and result.get('customername'):
             additional_info['Customer Name'] = result['customername']
+
+        if result.get('servicefamily') != '' and result.get('servicefamily'):
+            additional_info['Service Family'] = result['servicefamily']
 
         return additional_info
 
