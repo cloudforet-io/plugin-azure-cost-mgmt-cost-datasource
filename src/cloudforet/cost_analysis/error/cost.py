@@ -19,3 +19,6 @@ class ERROR_EMPTY_CUSTOMER_TENANTS(ERROR_INVALID_ARGUMENT):
 
 class ERROR_INVALID_TOKEN(ERROR_INVALID_ARGUMENT):
     _message = 'Invalid token: {token}'
+
+class ERROR_CONNECTOR_CALL_API(ERROR_UNKNOWN):
+    _message = 'API Call Error: {reason}'

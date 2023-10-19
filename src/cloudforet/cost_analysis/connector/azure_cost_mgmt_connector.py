@@ -187,6 +187,8 @@ class AzureCostMgmtConnector(BaseConnector):
     def _download_cost_data(blob: dict) -> str:
         try:
             response = requests.get(blob.get('blob_link'))
+            if response.status_code != 200:
+                raise ERROR_CONNECTOR_CALL_API(reason=f'{response.reason}')
             return response.text
         except Exception as e:
             _LOGGER.error(f'[_download_cost_data] download error: {e}', exc_info=True)
