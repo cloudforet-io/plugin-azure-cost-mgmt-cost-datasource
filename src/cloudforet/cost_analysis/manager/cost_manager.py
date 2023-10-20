@@ -72,7 +72,7 @@ class CostManager(BaseManager):
         cost = self._convert_str_to_float_format(result.get('costinbillingcurrency', 0))
         usage_quantity = self._convert_str_to_float_format(result.get('quantity', 0))
         usage_type = result.get('metername', '')
-        usage_unit = result.get('unitofmeasure', '')
+        usage_unit = str(result.get('unitofmeasure', ''))
         region_code = self._get_region_code(result.get('resourcelocation', ''))
         product = result.get('metercategory', '')
         tags = self._convert_tags_str_to_dict(result.get('tags', {}))
@@ -130,10 +130,14 @@ class CostManager(BaseManager):
             if result.get('pricingmodel') == 'OnDemand' and result.get('metercategory') == '':
                 result['metercategory'] = result.get('metercategory')
 
-        if result.get('departmentname') != '' and result.get('departmentname'):
+        if result.get('invoicesectionname') != '' and result.get('invoicesectionname'):
+            additional_info['Department Name'] = result.get('invoicesectionname')
+        elif result.get('departmentname') != '' and result.get('departmentname'):
             additional_info['Department Name'] = result['departmentname']
 
-        if result.get('enrollmentaccountname') != '' and result.get('enrollmentaccountname'):
+        if result.get('accountname') != '' and result.get('accountname'):
+            additional_info['Enrollment Account Name'] = result['accountname']
+        elif result.get('enrollmentaccountname') != '' and result.get('enrollmentaccountname'):
             additional_info['Enrollment Account Name'] = result['enrollmentaccountname']
 
         collect_resource_id = options.get('collect_resource_id', False)
