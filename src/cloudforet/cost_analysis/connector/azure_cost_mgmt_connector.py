@@ -92,9 +92,10 @@ class AzureCostMgmtConnector(BaseConnector):
             response = self.cost_mgmt_client.generate_cost_details_report.begin_create_operation(scope=scope,
                                                                                                  parameters=parameters,
                                                                                                  content_type=content_type)
-
             result = self.convert_nested_dictionary(response.result())
-            blobs = result.get('blobs', [])
+            _LOGGER.info(f'[begin_create_operation] result : {result} status : {response.status()}')
+
+            blobs = result.get('blobs', []) or []
             _LOGGER.debug(f'[begin_create_operation] csv_file_link: {blobs}')
             return blobs
 

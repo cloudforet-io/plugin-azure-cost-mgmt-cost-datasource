@@ -98,8 +98,8 @@ class CostManager(BaseManager):
         meter_category = result.get('metercategory', '')
         tenant_id = result.get('customertenantid') if result.get('customertenantid') else tenant_id
 
-        additional_info['Tenant ID'] = tenant_id
-        additional_info['Subscription ID'] = result.get('subscriptionid', 'Shared')
+        additional_info['Tenant Id'] = tenant_id
+        additional_info['Subscription Id'] = result.get('subscriptionid', 'Shared')
 
         if meter_category == 'Virtual Machines' and 'Meter' in result:
             additional_info['Instance Type'] = result['meter']
@@ -142,7 +142,7 @@ class CostManager(BaseManager):
 
         collect_resource_id = options.get('collect_resource_id', False)
         if collect_resource_id and result.get('resourceid') != '' and result.get('resourceid'):
-            additional_info['Resource ID'] = result['resourceid']
+            additional_info['Resource Id'] = result['resourceid']
             additional_info['Resource Name'] = result['resourceid'].split('/')[-1]
 
         if result.get('productname'):
