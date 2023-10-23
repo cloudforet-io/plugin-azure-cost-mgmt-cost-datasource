@@ -1,4 +1,4 @@
-FROM python:3-slim
+FROM cloudforet/python-core:2
 
 ENV PYTHONUNBUFFERED 1
 ENV SPACEONE_PORT 50051
