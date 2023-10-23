@@ -130,10 +130,11 @@ class CostManager(BaseManager):
             if result.get('pricingmodel') == 'OnDemand' and result.get('metercategory') == '':
                 result['metercategory'] = result.get('metercategory')
 
-        if result.get('invoicesectionname') != '' and result.get('invoicesectionname'):
-            additional_info['Department Name'] = result.get('invoicesectionname')
-        elif result.get('departmentname') != '' and result.get('departmentname'):
-            additional_info['Department Name'] = result['departmentname']
+        if result.get('customername') is None:
+            if result.get('invoicesectionname') != '' and result.get('invoicesectionname'):
+                additional_info['Department Name'] = result.get('invoicesectionname')
+            elif result.get('departmentname') != '' and result.get('departmentname'):
+                additional_info['Department Name'] = result['departmentname']
 
         if result.get('accountname') != '' and result.get('accountname'):
             additional_info['Enrollment Account Name'] = result['accountname']

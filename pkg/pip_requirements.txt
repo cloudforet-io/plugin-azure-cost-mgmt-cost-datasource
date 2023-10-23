@@ -1,8 +1,8 @@
 spaceone-core
 spaceone-api
-schematics
 azure-identity
 azure-mgmt-billing
 azure-mgmt-costmanagement
+schematics
 pandas
-
+python-dateutil

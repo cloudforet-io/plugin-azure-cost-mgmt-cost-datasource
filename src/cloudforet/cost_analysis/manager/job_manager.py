@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 from spaceone.core.manager import BaseManager
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import AzureCostMgmtConnector
@@ -72,7 +73,7 @@ class JobManager(BaseManager):
             start_time: datetime = last_synchronized_at - timedelta(days=7)
             start_time = start_time.replace(day=1)
         else:
-            start_time: datetime = datetime.utcnow() - timedelta(days=365)
+            start_time: datetime = datetime.utcnow() - relativedelta(months=9)
             start_time = start_time.replace(day=1)
 
         start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
