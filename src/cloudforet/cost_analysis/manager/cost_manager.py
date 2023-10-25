@@ -32,8 +32,9 @@ class CostManager(BaseManager):
             parameters = self._make_parameters(_start, _end, options)
 
             start_time = time.time()
-            _LOGGER.info(f'[get_data] start to collect data from {_start} to {_end}')
+            _LOGGER.info(f'[get_data] {tenant_ids} start to collect data from {_start} to {_end}')
             for idx, tenant_id in enumerate(tenant_ids):
+                _LOGGER.info(f'[get_data] #{idx+1} {tenant_id} tenant start to collect data from {_start} to {_end}')
                 scope = self._make_scope(secret_data, task_options, collect_scope, tenant_id)
                 blobs = self.azure_cm_connector.begin_create_operation(scope, parameters)
 
@@ -181,7 +182,7 @@ class CostManager(BaseManager):
         if 'tenant_id' in task_options:
             tenant_ids.append(task_options['tenant_id'])
         elif collect_scope == 'customer_tenant_id':
-            tenant_ids.append(task_options['customer_tenant'])
+            tenant_ids.append(task_options['customer_tenants'])
         else:
             tenant_ids.append('EA Agreement')
         return tenant_ids

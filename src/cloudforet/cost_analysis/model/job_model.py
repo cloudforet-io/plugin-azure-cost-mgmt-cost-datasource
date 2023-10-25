@@ -10,7 +10,7 @@ class TaskOptionsWithSubscription(Model):
 
 
 class TaskOptionsWithCustomerTenant(Model):
-    customer_tenant = StringType(serialize_when_none=False)
+    customer_tenants = ListType(StringType, serialize_when_none=False)
 
 
 class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenant):

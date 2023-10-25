@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -10,6 +11,7 @@ from cloudforet.cost_analysis.error.cost import *
 
 _LOGGER = logging.getLogger(__name__)
 
+_TASK_LIST_SIZE = 4
 
 class JobManager(BaseManager):
 
@@ -35,11 +37,14 @@ class JobManager(BaseManager):
                 if len(customer_tenants) == 0:
                     raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
 
-                for customer_tenant in customer_tenants:
+                tenant_size = math.ceil(len(customer_tenants)/_TASK_LIST_SIZE)
+                divided_customer_tenants = [customer_tenants[i:i + tenant_size] for i in range(0, len(customer_tenants), tenant_size)]
+
+                for divided_customer_tenant in divided_customer_tenants:
                     tasks.append({'task_options': {'start': start_month,
                                                    'account_agreement_type': billing_account_agreement_type,
                                                    'collect_scope': 'customer_tenant_id',
-                                                   'customer_tenant': customer_tenant}})
+                                                   'customer_tenants': divided_customer_tenant}})
                     changed.append({'start': start_month})
             else:
                 tasks = [{'task_options': {'start': start_month, 'account_agreement_type': billing_account_agreement_type,
