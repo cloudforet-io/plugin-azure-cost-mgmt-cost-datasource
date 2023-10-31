@@ -1,4 +1,3 @@
-spaceone-core
 spaceone-api
 azure-identity
 azure-mgmt-billing
