@@ -243,7 +243,7 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _convert_str_to_float_format(num_str: str):
-        return format(float(num_str), 'f')
+        return float(num_str)
 
     @staticmethod
     def _set_billed_date(start):
