@@ -1,7 +1,7 @@
 import logging
 import json
 import time
-
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
@@ -70,8 +70,8 @@ class CostManager(BaseManager):
 
     def _make_data_info(self, result, billed_date, options, tenant_id=None):
         additional_info = self._get_additional_info(result, options, tenant_id)
-        cost = self._convert_str_to_float_format(result.get('costinbillingcurrency', 0))
-        usage_quantity = self._convert_str_to_float_format(result.get('quantity', 0))
+        cost = self._convert_str_to_float_format(result.get('costinbillingcurrency', 0.0))
+        usage_quantity = self._convert_str_to_float_format(result.get('quantity', 0.0))
         usage_type = result.get('metername', '')
         usage_unit = str(result.get('unitofmeasure', ''))
         region_code = self._get_region_code(result.get('resourcelocation', ''))
@@ -242,8 +242,11 @@ class CostManager(BaseManager):
             return product_name
 
     @staticmethod
-    def _convert_str_to_float_format(num_str: str):
-        return float(num_str)
+    def _convert_str_to_float_format(num_str) -> float or Decimal:
+        if isinstance(num_str, float):
+            return num_str
+        else:
+            return Decimal(str(num_str))
 
     @staticmethod
     def _set_billed_date(start):
