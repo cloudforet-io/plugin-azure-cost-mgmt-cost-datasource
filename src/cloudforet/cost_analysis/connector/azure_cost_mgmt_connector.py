@@ -4,16 +4,18 @@ import requests
 import time
 import pandas as pd
 import numpy as np
-from io import StringIO
 
+from io import StringIO
 from datetime import datetime
+
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.billing import BillingManagementClient
+from azure.mgmt.costmanagement import CostManagementClient
+from azure.core.exceptions import ResourceNotFoundError
 from cloudforet.cost_analysis.conf.cost_conf import *
 from spaceone.core.connector import BaseConnector
 from spaceone.core.error import *
 from cloudforet.cost_analysis.error.cost import *
-from azure.identity import DefaultAzureCredential
-from azure.mgmt.billing import BillingManagementClient
-from azure.mgmt.costmanagement import CostManagementClient
 
 __all__ = ['AzureCostMgmtConnector']
 
@@ -98,7 +100,9 @@ class AzureCostMgmtConnector(BaseConnector):
             blobs = result.get('blobs', []) or []
             _LOGGER.debug(f'[begin_create_operation] csv_file_link: {blobs}')
             return blobs
-
+        except ResourceNotFoundError as e:
+            _LOGGER.error(f'[begin_create_operation] Cost data is not ready: {e}')
+            return []
         except Exception as e:
             _LOGGER.error(f'[begin_create_operation] error message: {e}')
             raise ERROR_UNKNOWN(message=f'[ERROR] begin_create_operation failed')
