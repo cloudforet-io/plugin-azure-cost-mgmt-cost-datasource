@@ -11,13 +11,14 @@ _LOGGER = logging.getLogger(__name__)
 @authorization_handler
 @event_handler
 class CostService(BaseService):
+    resource = "Cost"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_mgr: CostManager = self.locator.get_manager('CostManager')
+        self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
 
     @transaction
-    @check_required(['options', 'secret_data', 'task_options'])
+    @check_required(["options", "secret_data", "task_options"])
     def get_data(self, params):
         """Get Cost Data
 
@@ -35,9 +36,9 @@ class CostService(BaseService):
 
         """
 
-        options = params['options']
-        secret_data = params['secret_data']
-        schema = params.get('schema')
-        task_options = params['task_options']
+        options = params["options"]
+        secret_data = params["secret_data"]
+        schema = params.get("schema")
+        task_options = params["task_options"]
 
         return self.cost_mgr.get_data(options, secret_data, schema, task_options)
