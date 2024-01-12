@@ -9,15 +9,18 @@ _LOGGER = logging.getLogger(__name__)
 @authorization_handler
 @event_handler
 class DataSourceService(BaseService):
+    resource = "DataSource"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_mgr: DataSourceManager = self.locator.get_manager(DataSourceManager)
+        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
+            DataSourceManager
+        )
 
     @transaction
-    @check_required(['options'])
+    @check_required(["options"])
     def init(self, params):
-        """ init plugin by options
+        """init plugin by options
 
         Args:
             params (dict): {
@@ -28,14 +31,14 @@ class DataSourceService(BaseService):
         Returns:
             None
         """
-        options = params.get('options', {})
+        options = params.get("options", {})
 
         return self.data_source_mgr.init_response(options)
 
     @transaction
-    @check_required(['options', 'secret_data'])
+    @check_required(["options", "secret_data"])
     def verify(self, params):
-        """ Verifying data source plugin
+        """Verifying data source plugin
 
         Args:
             params (dict): {
@@ -49,8 +52,8 @@ class DataSourceService(BaseService):
             None
         """
 
-        options = params['options']
-        secret_data = params['secret_data']
-        schema = params.get('schema')
+        options = params["options"]
+        secret_data = params["secret_data"]
+        schema = params.get("schema")
 
         return self.data_source_mgr.verify_plugin(options, secret_data, schema)

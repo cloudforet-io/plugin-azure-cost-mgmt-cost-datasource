@@ -13,5 +13,6 @@ class Cost(Model):
     region_code = StringType()
     product = StringType()
     billed_date = StringType(required=True)
+    data = DictType(StringType, default={})
     additional_info = DictType(StringType, default={})
     tags = DictType(StringType, default={})

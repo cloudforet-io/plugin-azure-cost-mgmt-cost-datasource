@@ -8,10 +8,8 @@ __all__ = ['CostInfo', 'CostsInfo']
 
 _LOGGER = logging.getLogger(__name__)
 
-
 def CostInfo(cost_data):
     try:
-
         info = {
             'cost': float(cost_data['cost']),
             'usage_quantity': float(cost_data.get('usage_quantity')),
@@ -22,6 +20,7 @@ def CostInfo(cost_data):
             'product': cost_data.get('product'),
             'billed_date': cost_data['billed_date'],
             'additional_info': change_struct_type(cost_data['additional_info']) if 'additional_info' in cost_data else None,
+            'data': change_struct_type(cost_data['data']) if 'data' in cost_data else None,
             'tags': change_struct_type(cost_data['tags']) if 'tags' in cost_data else None
         }
         return cost_pb2.CostInfo(**info)
