@@ -4,32 +4,41 @@ from spaceone.api.cost_analysis.plugin import cost_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
 
-__all__ = ['CostInfo', 'CostsInfo']
+__all__ = ["CostInfo", "CostsInfo"]
 
 _LOGGER = logging.getLogger(__name__)
+
 
 def CostInfo(cost_data):
     try:
         info = {
-            'cost': float(cost_data['cost']),
-            'usage_quantity': float(cost_data.get('usage_quantity')),
-            'usage_type': cost_data.get('usage_type'),
-            'usage_unit': cost_data.get('usage_unit'),
-            'provider': cost_data.get('provider'),
-            'region_code': cost_data.get('region_code'),
-            'product': cost_data.get('product'),
-            'billed_date': cost_data['billed_date'],
-            'additional_info': change_struct_type(cost_data['additional_info']) if 'additional_info' in cost_data else None,
-            'data': change_struct_type(cost_data['data']) if 'data' in cost_data else None,
-            'tags': change_struct_type(cost_data['tags']) if 'tags' in cost_data else None
+            "cost": float(cost_data["cost"]),
+            "usage_quantity": float(cost_data.get("usage_quantity")),
+            "usage_type": cost_data.get("usage_type"),
+            "usage_unit": cost_data.get("usage_unit"),
+            "provider": cost_data.get("provider"),
+            "region_code": cost_data.get("region_code"),
+            "product": cost_data.get("product"),
+            "billed_date": cost_data["billed_date"],
+            "additional_info": change_struct_type(cost_data["additional_info"])
+            if "additional_info" in cost_data
+            else None,
+            "data": change_struct_type(cost_data["data"])
+            if "data" in cost_data
+            else None,
+            "tags": change_struct_type(cost_data["tags"])
+            if "tags" in cost_data
+            else None,
         }
         return cost_pb2.CostInfo(**info)
 
     except Exception as e:
-        _LOGGER.debug(f'[CostInfo] cost data: {cost_data}')
-        _LOGGER.debug(f'[CostInfo] error reason: {e}', exc_info=True)
+        _LOGGER.debug(f"[CostInfo] cost data: {cost_data}")
+        _LOGGER.debug(f"[CostInfo] error reason: {e}", exc_info=True)
         raise e
 
 
 def CostsInfo(costs_data, **kwargs):
-    return cost_pb2.CostsInfo(results=list(map(functools.partial(CostInfo, **kwargs), costs_data)))
+    return cost_pb2.CostsInfo(
+        results=list(map(functools.partial(CostInfo, **kwargs), costs_data))
+    )
