@@ -1,6 +1,8 @@
 import logging
 import json
 import time
+
+from typing import Union
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from spaceone.core.error import *
@@ -290,11 +292,11 @@ class CostManager(BaseManager):
             return product_name
 
     @staticmethod
-    def _convert_str_to_float_format(num_str) -> float or Decimal:
+    def _convert_str_to_float_format(num_str: Union[str, float]) -> float:
         if isinstance(num_str, float):
             return num_str
         else:
-            return Decimal(str(num_str))
+            return float(str(num_str))
 
     @staticmethod
     def _set_billed_date(start):
@@ -375,9 +377,11 @@ class CostManager(BaseManager):
             raise ERROR_REQUIRED_PARAMETER(key="task_options.customer_tenants")
 
     @staticmethod
-    def update_pay_as_you_go_data(usage_quantity, result, aggregate_data):
+    def update_pay_as_you_go_data(
+        usage_quantity: float, result: dict, aggregate_data: dict
+    ) -> dict:
         pay_g_price = result.get("paygprice", 0.0)
-        exchange_rate = result.get("exchangeratepricingtobilling", 1) or 1
+        exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
 
         if pay_g_price:
             pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
