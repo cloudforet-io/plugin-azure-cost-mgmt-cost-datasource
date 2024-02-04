@@ -99,7 +99,7 @@ class CostManager(BaseManager):
         aggregate_data = {}
 
         aggregate_data = self.update_pay_as_you_go_data(
-            usage_quantity, cost, result, aggregate_data
+            usage_quantity, result, aggregate_data
         )
 
         data = {
@@ -153,8 +153,8 @@ class CostManager(BaseManager):
             additional_info["Benefit Name"] = benefit_name
 
             if (
-                    result.get("pricingmodel") == "Reservation"
-                    and result["metercategory"] == ""
+                result.get("pricingmodel") == "Reservation"
+                and result["metercategory"] == ""
             ):
                 result["metercategory"] = self._set_product_from_benefit_name(
                     benefit_name
@@ -163,14 +163,14 @@ class CostManager(BaseManager):
         if result.get("metersubcategory") != "" and result.get("metersubcategory"):
             additional_info["Meter SubCategory"] = result.get("metersubcategory")
             if (
-                    result.get("pricingmodel") == "OnDemand"
-                    and result.get("metercategory") == ""
+                result.get("pricingmodel") == "OnDemand"
+                and result.get("metercategory") == ""
             ):
                 result["metercategory"] = result.get("metercategory")
 
         if result.get("customername") is None:
             if result.get("invoicesectionname") != "" and result.get(
-                    "invoicesectionname"
+                "invoicesectionname"
             ):
                 additional_info["Department Name"] = result.get("invoicesectionname")
             elif result.get("departmentname") != "" and result.get("departmentname"):
@@ -179,15 +179,15 @@ class CostManager(BaseManager):
         if result.get("accountname") != "" and result.get("accountname"):
             additional_info["Enrollment Account Name"] = result["accountname"]
         elif result.get("enrollmentaccountname") != "" and result.get(
-                "enrollmentaccountname"
+            "enrollmentaccountname"
         ):
             additional_info["Enrollment Account Name"] = result["enrollmentaccountname"]
 
         collect_resource_id = options.get("collect_resource_id", False)
         if (
-                collect_resource_id
-                and result.get("resourceid") != ""
-                and result.get("resourceid")
+            collect_resource_id
+            and result.get("resourceid") != ""
+            and result.get("resourceid")
         ):
             additional_info["Resource Id"] = result["resourceid"]
             additional_info["Resource Name"] = result["resourceid"].split("/")[-1]
@@ -344,11 +344,11 @@ class CostManager(BaseManager):
                 first_date_of_month = datetime(year, month, 1).strftime("%Y-%m-%d")
                 if month == 12:
                     last_date_of_month = (
-                            datetime(year + 1, 1, 1) - timedelta(days=1)
+                        datetime(year + 1, 1, 1) - timedelta(days=1)
                     ).strftime("%Y-%m-%d")
                 else:
                     last_date_of_month = (
-                            datetime(year, month + 1, 1) - timedelta(days=1)
+                        datetime(year, month + 1, 1) - timedelta(days=1)
                     ).strftime("%Y-%m-%d")
                 if last_date_of_month > current_date:
                     last_date_of_month = current_date
@@ -375,14 +375,11 @@ class CostManager(BaseManager):
             raise ERROR_REQUIRED_PARAMETER(key="task_options.customer_tenants")
 
     @staticmethod
-    def update_pay_as_you_go_data(usage_quantity, cost, result, aggregate_data):
-        if pay_g_price := result.get("paygprice", 0):
-            exchange_rate = result.get("exchangeratepricingtobilling", 1)
-            pay_as_you_go = (
-                pay_g_price * usage_quantity * exchange_rate
-                if pay_g_price != 0
-                else cost
-            )
+    def update_pay_as_you_go_data(usage_quantity, result, aggregate_data):
+        pay_g_price = result.get("paygprice", 0.0)
+        exchange_rate = result.get("exchangeratepricingtobilling", 1) or 1
 
+        if pay_g_price:
+            pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
             aggregate_data.update({"PayAsYouGo": pay_as_you_go})
         return aggregate_data
