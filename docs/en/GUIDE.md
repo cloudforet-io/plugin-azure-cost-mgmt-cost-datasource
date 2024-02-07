@@ -4,6 +4,7 @@ All the following are executed with the `spacectl` command.
 In this guide you will:
 
 - Register the datasource with Azure credentials
+- Modify datasource currency (optional)
 
 ## Pre-requisites
 
@@ -35,6 +36,7 @@ plugin_info:
   upgrade_mode: AUTO
 tags: { }
 template: { }
+domain_id: { domain_id }
 ```
 
 if you are installed cloudforet version `2.0`
@@ -56,7 +58,6 @@ plugin_info:
   upgrade_mode: AUTO
 
 tags: { }
-template: { }
 resource_group: DOMAIN
 ```
 
@@ -81,6 +82,16 @@ and execute the following command <br>
 If you are enterprise customer and have huge data, it may take a long time.
 
 ```bash
-spacectl exec sync cost_analysis.DataSource -p data_source_id={ data_source_id }
+spacectl exec sync cost_analysis.DataSource -p data_source_id={ data_source_id } -p domain_id = { domain_id }
 ```
 
+## Modify datasource currency (optional)
+
+> If you modify the currency, it will only affect SpaceONE. This plugin collects your billing currency setting from
+> Azure.
+
+By default, the currency is set to KRW. If you wish to change the currency, you can use the following command.
+
+```bash
+spacecetl exec update_plugin cost_analysis.DataSource -p data_source_id={ data_source_id } -p domain_id={ domain_id } -j '{"options": {"currency": "USD"}}'
+```
