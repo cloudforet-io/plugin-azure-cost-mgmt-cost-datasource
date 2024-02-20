@@ -1,11 +1,17 @@
-# plugin-azure-cost-mgmt-cost-datasource
+<h1 align="center">Azure Cost Management Plugin </h1>
 
 Plugin for collecting Azure Cost management data
 
+# Contents
+
+- [Azure Service Endpoint(in use)](#azure-service-endpoint-in-use)
+- [Schema Data](#schema-data)
+- [Options](#options)
+- [Release Note](#release-note)
 
 ---
 
-## Azure Service Endpoint(in use)
+## Azure Service Endpoint (in use)
 
 <pre>
 https://*.blob.core.windows.net
@@ -55,3 +61,11 @@ https://login.microsoftonline.com
 ## Options
 
 Currently, not required.
+
+---
+
+# Release Note
+
+| Version | Description                                                                                                                    | Release Date |
+|---------|--------------------------------------------------------------------------------------------------------------------------------|--------------|
+| 1.1.11  | - [Add `Meter Name` to check snapshot cost](https://github.com/cloudforet-io/plugin-azure-cost-mgmt-cost-datasource/issues/49) | 2024-02-20   |
