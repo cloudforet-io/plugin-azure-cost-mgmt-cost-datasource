@@ -1,10 +1,10 @@
+import calendar
 import logging
 import json
 import time
 
 from typing import Union
-from decimal import Decimal
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
@@ -28,8 +28,8 @@ class CostManager(BaseManager):
 
         collect_scope = task_options["collect_scope"]
         tenant_ids = self._get_tenant_ids(task_options, collect_scope)
-        start = self._add_first_day_of_month(task_options["start"])
-        end = datetime.utcnow().replace(tzinfo=timezone.utc)
+        start = self._get_first_date_of_month(task_options["start"])
+        end = datetime.utcnow()
 
         monthly_time_period = self._make_monthly_time_period(start, end)
         for time_period in monthly_time_period:
@@ -206,6 +206,9 @@ class CostManager(BaseManager):
         if result.get("servicefamily") != "" and result.get("servicefamily"):
             additional_info["Service Family"] = result["servicefamily"]
 
+        if result.get("metername") != "" and result.get("metername"):
+            additional_info["Meter Name"] = result["metername"]
+
         return additional_info
 
     @staticmethod
@@ -213,7 +216,7 @@ class CostManager(BaseManager):
         return resource_location.lower() if resource_location else resource_location
 
     @staticmethod
-    def _make_parameters(start, end, options):
+    def _make_parameters(start: datetime, end: datetime, options: dict) -> dict:
         parameters = {
             "metric": "ActualCost",
             "timePeriod": {"start": start, "end": end},
@@ -221,7 +224,7 @@ class CostManager(BaseManager):
         return parameters
 
     @staticmethod
-    def _get_tenant_ids(task_options, collect_scope):
+    def _get_tenant_ids(task_options: dict, collect_scope: str) -> list:
         tenant_ids = []
         if "tenant_id" in task_options:
             tenant_ids.append(task_options["tenant_id"])
@@ -232,7 +235,12 @@ class CostManager(BaseManager):
         return tenant_ids
 
     @staticmethod
-    def _make_scope(secret_data, task_options, collect_scope, customer_tenant_id=None):
+    def _make_scope(
+        secret_data: dict,
+        task_options: dict,
+        collect_scope: str,
+        customer_tenant_id: str = None,
+    ):
         if collect_scope == "subscription_id":
             subscription_id = task_options["subscription_id"]
             scope = SCOPE_MAP[collect_scope].format(subscription_id=subscription_id)
@@ -250,7 +258,7 @@ class CostManager(BaseManager):
         return scope
 
     @staticmethod
-    def _convert_tags_str_to_dict(tags_str):
+    def _convert_tags_str_to_dict(tags_str: str):
         try:
             if tags_str is None:
                 return {}
@@ -292,14 +300,16 @@ class CostManager(BaseManager):
             return product_name
 
     @staticmethod
-    def _convert_str_to_float_format(num_str: Union[str, float]) -> float:
-        if isinstance(num_str, float):
-            return num_str
-        else:
+    def _convert_str_to_float_format(num_str: Union[str, float, None]) -> float:
+        if isinstance(num_str, str):
             return float(str(num_str))
+        elif num_str is None:
+            return 0.0
+        else:
+            return num_str
 
     @staticmethod
-    def _set_billed_date(start):
+    def _set_billed_date(start: Union[str, int, datetime]):
         try:
             if isinstance(start, int):
                 start = str(start)
@@ -317,21 +327,23 @@ class CostManager(BaseManager):
             return None
 
     @staticmethod
-    def _add_first_day_of_month(start_month):
+    def _get_first_date_of_month(start_month: str) -> datetime:
         return datetime.strptime(start_month, "%Y-%m").replace(day=1)
 
     @staticmethod
-    def _convert_date_format_to_utc(date_format: str):
+    def _get_last_date_of_month(year: int, month: int) -> datetime:
+        last_day = calendar.monthrange(year, month)[1]
+        return datetime(year, month, last_day)
+
+    @staticmethod
+    def _convert_date_format_to_utc(date_format: str) -> datetime:
         return datetime.strptime(date_format, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
-    def _make_monthly_time_period(self, start_date, end_date):
+    def _make_monthly_time_period(
+        self, start_date: datetime, end_date: datetime
+    ) -> list:
         monthly_time_period = []
-        current_date = datetime.utcnow().strftime("%Y-%m-%d")
-
-        if isinstance(start_date, str):
-            start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        if isinstance(end_date, str):
-            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        current_date = end_date
 
         start_year = start_date.year
         start_month = start_date.month
@@ -343,21 +355,15 @@ class CostManager(BaseManager):
             end = end_month if year == end_year else 12
 
             for month in range(start, end + 1):
-                first_date_of_month = datetime(year, month, 1).strftime("%Y-%m-%d")
-                if month == 12:
-                    last_date_of_month = (
-                        datetime(year + 1, 1, 1) - timedelta(days=1)
-                    ).strftime("%Y-%m-%d")
-                else:
-                    last_date_of_month = (
-                        datetime(year, month + 1, 1) - timedelta(days=1)
-                    ).strftime("%Y-%m-%d")
+                first_date_of_month = self._get_first_date_of_month(f"{year}-{month}")
+                last_date_of_month = self._get_last_date_of_month(year, month)
+
                 if last_date_of_month > current_date:
                     last_date_of_month = current_date
                 monthly_time_period.append(
                     {
-                        "start": self._convert_date_format_to_utc(first_date_of_month),
-                        "end": self._convert_date_format_to_utc(last_date_of_month),
+                        "start": first_date_of_month,
+                        "end": last_date_of_month,
                     }
                 )
         return monthly_time_period
