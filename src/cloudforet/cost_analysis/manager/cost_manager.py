@@ -219,7 +219,7 @@ class CostManager(BaseManager):
         cost = self._convert_str_to_float_format(
             result.get("costinbillingcurrency", 0.0)
         )
-        if options.get("pay_as_you_go", False) and result.get("charge_type") == "Usage":
+        if options.get("pay_as_you_go", False) and result.get("chargetype") == "Usage":
             cost = self.get_pay_as_you_go_cost(result, cost)
 
         return cost
