@@ -69,3 +69,4 @@ Currently, not required.
 | Version | Description                                                                                                                    | Release Date |
 |---------|--------------------------------------------------------------------------------------------------------------------------------|--------------|
 | 1.1.11  | - [Add `Meter Name` to check snapshot cost](https://github.com/cloudforet-io/plugin-azure-cost-mgmt-cost-datasource/issues/49) | 2024-02-20   |
+| 1.1.10  | - [Fix default currency issue](https://github.com/orgs/cloudforet-io/discussions/141)                                          | 2024-02-07   |                                                                                            
