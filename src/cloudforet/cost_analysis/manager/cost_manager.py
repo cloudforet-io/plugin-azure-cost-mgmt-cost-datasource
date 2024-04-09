@@ -22,14 +22,16 @@ class CostManager(BaseManager):
             "AzureCostMgmtConnector"
         )
 
-    def get_data(self, options, secret_data, schema, task_options):
+    def get_data(
+        self, options: dict, secret_data: dict, schema, task_options: dict
+    ) -> list:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
-        collect_scope = task_options["collect_scope"]
-        tenant_ids = self._get_tenant_ids(task_options, collect_scope)
-        start = self._get_first_date_of_month(task_options["start"])
-        end = datetime.utcnow()
+        collect_scope: str = task_options["collect_scope"]
+        tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
+        start: datetime = self._get_first_date_of_month(task_options["start"])
+        end: datetime = datetime.utcnow()
 
         monthly_time_period = self._make_monthly_time_period(start, end)
         for time_period in monthly_time_period:
@@ -66,7 +68,9 @@ class CostManager(BaseManager):
             )
         yield []
 
-    def _make_cost_data(self, results, end, options, tenant_id=None):
+    def _make_cost_data(
+        self, results: list, end: datetime, options: dict, tenant_id: str = None
+    ):
         """Source Data Model"""
 
         costs_data = []
@@ -87,22 +91,19 @@ class CostManager(BaseManager):
 
         return costs_data
 
-    def _make_data_info(self, result, billed_date, options, tenant_id=None):
+    def _make_data_info(
+        self, result: dict, billed_date: str, options: dict, tenant_id: str = None
+    ):
         additional_info = self._get_additional_info(result, options, tenant_id)
-        cost = self._convert_str_to_float_format(
-            result.get("costinbillingcurrency", 0.0)
-        )
+        cost = self._get_cost_from_result_with_options(result, options)
         usage_quantity = self._convert_str_to_float_format(result.get("quantity", 0.0))
         usage_type = result.get("metername", "")
         usage_unit = str(result.get("unitofmeasure", ""))
         region_code = self._get_region_code(result.get("resourcelocation", ""))
         product = result.get("metercategory", "")
-        tags = self._convert_tags_str_to_dict(result.get("tags", {}))
-        aggregate_data = {}
+        tags = self._convert_tags_str_to_dict(result.get("tags"))
 
-        aggregate_data = self.update_pay_as_you_go_data(
-            usage_quantity, result, aggregate_data
-        )
+        aggregate_data = self._get_aggregate_data(result, options)
 
         data = {
             "cost": cost,
@@ -120,7 +121,7 @@ class CostManager(BaseManager):
 
         return data
 
-    def _get_additional_info(self, result, options, tenant_id=None):
+    def _get_additional_info(self, result: dict, options: dict, tenant_id: str = None):
         additional_info = {}
 
         meter_category = result.get("metercategory", "")
@@ -134,7 +135,7 @@ class CostManager(BaseManager):
         additional_info["Subscription Id"] = result.get("subscriptionid", "Shared")
 
         if meter_category == "Virtual Machines" and "Meter" in result:
-            additional_info["Instance Type"] = result["meter"]
+            additional_info["Instance Type"] = result["metername"]
 
         if result.get("resourcegroupname") != "" and result.get("resourcegroupname"):
             additional_info["Resource Group"] = result["resourcegroupname"]
@@ -209,10 +210,22 @@ class CostManager(BaseManager):
         if result.get("metername") != "" and result.get("metername"):
             additional_info["Meter Name"] = result["metername"]
 
+        if result.get("term") != "" and result.get("term"):
+            additional_info["Term"] = result["term"]
+
         return additional_info
 
+    def _get_cost_from_result_with_options(self, result: dict, options: dict) -> float:
+        cost = self._convert_str_to_float_format(
+            result.get("costinbillingcurrency", 0.0)
+        )
+        if options.get("pay_as_you_go", False) and result.get("charge_type") == "Usage":
+            cost = self.get_pay_as_you_go_cost(result, cost)
+
+        return cost
+
     @staticmethod
-    def _get_region_code(resource_location):
+    def _get_region_code(resource_location: str) -> str:
         return resource_location.lower() if resource_location else resource_location
 
     @staticmethod
@@ -258,7 +271,7 @@ class CostManager(BaseManager):
         return scope
 
     @staticmethod
-    def _convert_tags_str_to_dict(tags_str: str):
+    def _convert_tags_str_to_dict(tags_str: Union[str, None]) -> dict:
         try:
             if tags_str is None:
                 return {}
@@ -382,14 +395,24 @@ class CostManager(BaseManager):
         elif task_options["collect_scope"] == "customer_tenants":
             raise ERROR_REQUIRED_PARAMETER(key="task_options.customer_tenants")
 
-    @staticmethod
-    def update_pay_as_you_go_data(
-        usage_quantity: float, result: dict, aggregate_data: dict
-    ) -> dict:
-        pay_g_price = result.get("paygprice", 0.0)
-        exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
+    def get_pay_as_you_go_cost(self, result: dict, cost: float = 0.0) -> float:
+        if pay_g_billing_price := result.get("paygcostinbillingcurrency"):
+            cost_pay_as_you_go = pay_g_billing_price
+        elif pay_g_price := result.get("paygprice", 0.0):
+            usage_quantity = self._convert_str_to_float_format(
+                result.get("quantity", 0.0)
+            )
+            exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
+            cost_pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
+        else:
+            cost_pay_as_you_go = cost
+        return cost_pay_as_you_go
 
-        if pay_g_price:
-            pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
-            aggregate_data.update({"PayAsYouGo": pay_as_you_go})
+    def _get_aggregate_data(self, result: dict, options: dict) -> dict:
+        aggregate_data = {}
+
+        if not options.get("pay_as_you_go", False):
+            pay_as_you_go_cost = self.get_pay_as_you_go_cost(result)
+            aggregate_data.update({"PayAsYouGo": pay_as_you_go_cost})
+
         return aggregate_data

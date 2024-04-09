@@ -12,8 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 def CostInfo(cost_data):
     try:
         info = {
-            "cost": float(cost_data["cost"]),
-            "usage_quantity": float(cost_data.get("usage_quantity")),
+            "cost": cost_data["cost"],
+            "usage_quantity": cost_data.get("usage_quantity"),
             "usage_type": cost_data.get("usage_type"),
             "usage_unit": cost_data.get("usage_unit"),
             "provider": cost_data.get("provider"),
