@@ -2,22 +2,19 @@ from schematics.models import Model
 from schematics.types import ListType, DictType, StringType, IntType, BooleanType
 from schematics.types.compound import ModelType
 
-__all__ = ['PluginMetadata']
-
+__all__ = ["PluginMetadata"]
 
 _DEFAULT_DATA_SOURCE_RULES = [
     {
-        'name': 'match_service_account',
-        'conditions_policy': 'ALWAYS',
-        'actions': {
-            'match_service_account': {
-                'source': 'additional_info.Subscription Id',
-                'target': 'data.subscription_id'
+        "name": "match_service_account",
+        "conditions_policy": "ALWAYS",
+        "actions": {
+            "match_service_account": {
+                "source": "additional_info.Subscription Id",
+                "target": "data.subscription_id",
             }
         },
-        'options': {
-            'stop_processing': True
-        }
+        "options": {"stop_processing": True},
     }
 ]
 
@@ -38,19 +35,24 @@ class Options(Model):
 class Condition(Model):
     key = StringType(required=True)
     value = StringType(required=True)
-    operator = StringType(required=True, choices=['eq', 'contain', 'not', 'not_contain'])
+    operator = StringType(
+        required=True, choices=["eq", "contain", "not", "not_contain"]
+    )
 
 
 class DataSourceRule(Model):
     name = StringType(required=True)
     conditions = ListType(ModelType(Condition), default=[])
-    conditions_policy = StringType(required=True, choices=['ALL', 'ANY', 'ALWAYS'])
+    conditions_policy = StringType(required=True, choices=["ALL", "ANY", "ALWAYS"])
     actions = ModelType(Actions, required=True)
     options = ModelType(Options, default={})
     tags = DictType(StringType, default={})
 
 
 class PluginMetadata(Model):
-    data_source_rules = ListType(ModelType(DataSourceRule), default=_DEFAULT_DATA_SOURCE_RULES)
-    supported_secret_types = ListType(StringType, default=['MANUAL'])
-    currency = StringType(default='KRW')
+    data_source_rules = ListType(
+        ModelType(DataSourceRule), default=_DEFAULT_DATA_SOURCE_RULES
+    )
+    supported_secret_types = ListType(StringType, default=["MANUAL"])
+    currency = StringType(default="KRW")
+    alias = DictType(StringType, default={})

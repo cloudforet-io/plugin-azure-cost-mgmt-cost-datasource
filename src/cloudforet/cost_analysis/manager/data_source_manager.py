@@ -15,6 +15,9 @@ class DataSourceManager(BaseManager):
         plugin_metadata = PluginMetadata()
         if currency := options.get("currency"):
             plugin_metadata.currency = currency
+        if options.get("pay_as_you_go"):
+            plugin_metadata.alias.update({"cost": "PayAsYouGo"})
+
         plugin_metadata.validate()
 
         return {"metadata": plugin_metadata.to_primitive()}
