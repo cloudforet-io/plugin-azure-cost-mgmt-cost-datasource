@@ -142,9 +142,6 @@ class CostManager(BaseManager):
         elif result.get("resourcegroup") != "" and result.get("resourcegroup"):
             additional_info["Resource Group"] = result["resourcegroup"]
 
-        if result.get("resourcetype") != "" and result.get("resourcetype"):
-            additional_info["Resource Type"] = result["resourcetype"]
-
         if result.get("subscriptionname") != "" and result.get("subscriptionname"):
             additional_info["Subscription Name"] = result["subscriptionname"]
 
