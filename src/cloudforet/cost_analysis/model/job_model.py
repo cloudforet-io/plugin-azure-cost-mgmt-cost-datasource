@@ -1,7 +1,13 @@
 from schematics.models import Model
-from schematics.types import ListType, StringType, DictType
+from schematics.types import ListType, StringType, DictType, BooleanType
 from schematics.types.compound import ModelType
-__all__ = ['Tasks']
+
+__all__ = ["Tasks"]
+
+
+class CustomerInfo(Model):
+    customer_id = StringType(required=True)
+    is_sync = BooleanType(default=False)
 
 
 class TaskOptionsWithSubscription(Model):
@@ -10,13 +16,24 @@ class TaskOptionsWithSubscription(Model):
 
 
 class TaskOptionsWithCustomerTenant(Model):
-    customer_tenants = ListType(StringType, serialize_when_none=False)
+    customer_tenants = ListType(ModelType(CustomerInfo), serialize_when_none=False)
 
 
 class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenant):
     start = StringType(required=True, max_length=7)
-    collect_scope = StringType(choices=['subscription_id', 'billing_account_id', 'customer_tenant_id'], required=True)
-    account_agreement_type = StringType(choices=['EnterpriseAgreement', 'MicrosoftPartnerAgreement', 'MicrosoftCustomerAgreement','MicrosoftOnlineServicesProgram'], serialize_when_none=False)
+    collect_scope = StringType(
+        choices=["subscription_id", "billing_account_id", "customer_tenant_id"],
+        required=True,
+    )
+    account_agreement_type = StringType(
+        choices=[
+            "EnterpriseAgreement",
+            "MicrosoftPartnerAgreement",
+            "MicrosoftCustomerAgreement",
+            "MicrosoftOnlineServicesProgram",
+        ],
+        serialize_when_none=False,
+    )
 
 
 class Task(Model):

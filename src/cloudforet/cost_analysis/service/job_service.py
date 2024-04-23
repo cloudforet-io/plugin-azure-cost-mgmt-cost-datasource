@@ -17,7 +17,7 @@ class JobService(BaseService):
         self.job_mgr: JobManager = self.locator.get_manager(JobManager)
 
     @transaction
-    @check_required(["options", "secret_data"])
+    @check_required(["options", "secret_data", "domain_id"])
     @change_timestamp_value(["last_synchronized_at"], timestamp_format="iso8601")
     def get_tasks(self, params):
         """Get Job Tasks
@@ -26,6 +26,7 @@ class JobService(BaseService):
             params (dict): {
                 'options': 'dict',
                 'secret_data': 'dict',
+                'linked_accounts': 'list',
                 'schema': 'str',
                 'start': 'datetime',
                 'last_synchronized_at': 'datetime',
@@ -39,11 +40,18 @@ class JobService(BaseService):
 
         options = params["options"]
         secret_data = params["secret_data"]
+        linked_accounts = params.get("linked_accounts", [])
         schema = params.get("schema")
         start = params.get("start")
         last_synchronized_at = params.get("last_synchronized_at")
         domain_id = params["domain_id"]
 
         return self.job_mgr.get_tasks(
-            options, secret_data, schema, start, last_synchronized_at, domain_id
+            options,
+            secret_data,
+            linked_accounts,
+            schema,
+            start,
+            last_synchronized_at,
+            domain_id,
         )

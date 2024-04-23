@@ -17,6 +17,29 @@ class CostService(BaseService):
         self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
 
     @transaction
+    @check_required(["options", "secret_data", "domain_id"])
+    def get_linked_accounts(self, params: dict):
+        """Get linked accounts
+        Args:
+            params (dict): {
+                'options': 'dict',
+                'schema': 'dict,
+                'secret_data': 'dict',
+                'domain_id': 'str'
+            }
+        Returns:
+            list of linked_accounts
+        """
+        options = params["options"]
+        schema = params.get("schema")
+        secret_data = params["secret_data"]
+        domain_id = params["domain_id"]
+
+        return self.cost_mgr.get_linked_accounts(
+            options, secret_data, domain_id, schema
+        )
+
+    @transaction
     @check_required(["options", "secret_data", "task_options"])
     def get_data(self, params):
         """Get Cost Data
