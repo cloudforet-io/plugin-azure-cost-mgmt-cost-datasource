@@ -30,7 +30,7 @@ DEFAULT_ACCOUNT_CONNECT_POLICES = [
         },
     },
     {
-        "name": "connect_account_to_cost",
+        "name": "connect_cost_to_account",
         "polices": {
             "connect_cost_to_account": {
                 "operator": "eq",
