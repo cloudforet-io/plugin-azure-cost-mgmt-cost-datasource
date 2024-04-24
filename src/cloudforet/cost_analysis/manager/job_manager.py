@@ -47,21 +47,22 @@ class JobManager(BaseManager):
             if billing_account_agreement_type == "MicrosoftPartnerAgreement":
                 tasks = []
                 changed = []
+                synced_accounts = []
 
                 # divide customer tenants for each task
                 customer_tenants, first_sync_tenants = self._get_customer_tenants(
                     secret_data, linked_accounts
-                )
-                divided_customer_tenants = self._get_divided_customer_tenants(
-                    customer_tenants
                 )
 
                 if len(customer_tenants) == 0 and len(first_sync_tenants) > 0:
                     customer_tenants.extend(first_sync_tenants)
                     first_sync_tenants = []
 
+                divided_customer_tenants = self._get_divided_customer_tenants(
+                    customer_tenants
+                )
+
                 for divided_customer_tenant_info in divided_customer_tenants:
-                    print(divided_customer_tenant_info)
                     tasks.append(
                         {
                             "task_options": {
@@ -73,6 +74,10 @@ class JobManager(BaseManager):
                         }
                     )
                     changed.append({"start": start_month})
+                    synced_accounts.extend(
+                        {"account_id": tenant_id}
+                        for tenant_id in divided_customer_tenant_info
+                    )
                 if first_sync_tenants:
                     first_sync_start_month = self._get_start_month(start=None)
                     tasks.append(
@@ -87,6 +92,9 @@ class JobManager(BaseManager):
                         }
                     )
                     changed.append({"start": first_sync_start_month})
+                    synced_accounts.extend(
+                        {"account_id": tenant_id} for tenant_id in first_sync_tenants
+                    )
             else:
                 tasks = [
                     {
@@ -98,6 +106,7 @@ class JobManager(BaseManager):
                     }
                 ]
                 changed = [{"start": start_month}]
+                synced_accounts = []
 
         elif secret_type == "USE_SERVICE_ACCOUNT_SECRET":
             subscription_id = secret_data.get("subscription_id", "")
@@ -113,11 +122,14 @@ class JobManager(BaseManager):
                 }
             ]
             changed = [{"start": start_month}]
+            synced_accounts = []
 
         else:
             raise ERROR_INVALID_SECRET_TYPE(secret_type=options.get("secret_type"))
 
-        tasks = Tasks({"tasks": tasks, "changed": changed})
+        tasks = Tasks(
+            {"tasks": tasks, "changed": changed, "synced_accounts": synced_accounts}
+        )
         tasks.validate()
         return tasks.to_primitive()
 
@@ -149,7 +161,6 @@ class JobManager(BaseManager):
         self, secret_data: dict, linked_accounts: list = None
     ) -> Tuple[list, list]:
         first_sync_customer_tenants = []
-        linked_accounts_map = {}
         customer_tenants = secret_data.get(
             "customer_tenants", self._get_tenants_from_billing_account()
         )
@@ -169,6 +180,12 @@ class JobManager(BaseManager):
                             linked_account_info.get("account_id")
                         )
                         customer_tenants.remove(customer_tenant_id)
+                else:
+                    _LOGGER.debug(
+                        f"[_get_customer_tenants] Customer tenant is not linked: {linked_account_info}"
+                    )
+                    customer_tenants.remove(customer_tenant_id)
+
         return customer_tenants, first_sync_customer_tenants
 
     @staticmethod

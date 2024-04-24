@@ -42,6 +42,11 @@ class Changed(Model):
     filter = DictType(StringType, default={})
 
 
+class SyncedAccount(Model):
+    account_id = StringType(required=True, max_length=255)
+
+
 class Tasks(Model):
     tasks = ListType(ModelType(Task), required=True)
     changed = ListType(ModelType(Changed), default=[])
+    synced_accounts = ListType(ModelType(SyncedAccount), default=[])
