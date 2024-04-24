@@ -337,13 +337,16 @@ class CostManager(BaseManager):
         secret_data: dict,
         task_options: dict,
         collect_scope: str,
-        customer_tenant_id: str = None,
+        customer_tenant_id: Union[dict, str] = None,
     ):
         if collect_scope == "subscription_id":
             subscription_id = task_options["subscription_id"]
             scope = SCOPE_MAP[collect_scope].format(subscription_id=subscription_id)
         elif collect_scope == "customer_tenant_id":
             billing_account_id = secret_data.get("billing_account_id")
+            if isinstance(customer_tenant_id, dict):
+                customer_tenant_id = customer_tenant_id.get("customer_id")
+
             scope = SCOPE_MAP[collect_scope].format(
                 billing_account_id=billing_account_id,
                 customer_tenant_id=customer_tenant_id,
