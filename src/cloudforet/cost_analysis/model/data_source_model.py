@@ -34,7 +34,7 @@ DEFAULT_ACCOUNT_CONNECT_POLICES = [
         "polices": {
             "connect_cost_to_account": {
                 "operator": "eq",
-                "source": "AdditionalInfo.Tenant Id",
+                "source": "additional_info.Tenant Id",
                 "target": "account_id",
             }
         },
