@@ -1,13 +1,15 @@
 import logging
 import math
 from datetime import datetime, timedelta
+from typing import Tuple, Union
+
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core.manager import BaseManager
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
     AzureCostMgmtConnector,
 )
-from cloudforet.cost_analysis.model.job_model import Tasks, CustomerInfo
+from cloudforet.cost_analysis.model.job_model import Tasks
 from cloudforet.cost_analysis.conf.cost_conf import SECRET_TYPE_DEFAULT
 from cloudforet.cost_analysis.error.cost import *
 
@@ -47,12 +49,16 @@ class JobManager(BaseManager):
                 changed = []
 
                 # divide customer tenants for each task
-                customer_tenants = self._get_customer_tenants(
+                customer_tenants, first_sync_tenants = self._get_customer_tenants(
                     secret_data, linked_accounts
                 )
                 divided_customer_tenants = self._get_divided_customer_tenants(
                     customer_tenants
                 )
+
+                if len(customer_tenants) == 0 and len(first_sync_tenants) > 0:
+                    customer_tenants.extend(first_sync_tenants)
+                    first_sync_tenants = []
 
                 for divided_customer_tenant_info in divided_customer_tenants:
                     print(divided_customer_tenant_info)
@@ -67,6 +73,20 @@ class JobManager(BaseManager):
                         }
                     )
                     changed.append({"start": start_month})
+                if first_sync_tenants:
+                    first_sync_start_month = self._get_start_month(start=None)
+                    tasks.append(
+                        {
+                            "task_options": {
+                                "start": first_sync_start_month,
+                                "account_agreement_type": billing_account_agreement_type,
+                                "collect_scope": "customer_tenant_id",
+                                "customer_tenants": first_sync_tenants,
+                                "is_sync": False,
+                            }
+                        }
+                    )
+                    changed.append({"start": first_sync_start_month})
             else:
                 tasks = [
                     {
@@ -108,7 +128,7 @@ class JobManager(BaseManager):
         return tenants
 
     def _get_start_month(
-        self, start: str, last_synchronized_at: datetime = None
+        self, start: Union[str, None], last_synchronized_at: datetime = None
     ) -> str:
         if start:
             start_time: datetime = self._parse_start_time(start)
@@ -127,8 +147,8 @@ class JobManager(BaseManager):
 
     def _get_customer_tenants(
         self, secret_data: dict, linked_accounts: list = None
-    ) -> list:
-        customer_tenants_info = []
+    ) -> Tuple[list, list]:
+        first_sync_customer_tenants = []
         linked_accounts_map = {}
         customer_tenants = secret_data.get(
             "customer_tenants", self._get_tenants_from_billing_account()
@@ -142,22 +162,14 @@ class JobManager(BaseManager):
                 for linked_account in linked_accounts
             }
 
-        for customer_tenant_id in customer_tenants:
-            if linked_account_info := linked_accounts_map.get(customer_tenant_id):
-                customer_tenants_info.append(
-                    CustomerInfo(
-                        {
-                            "customer_id": linked_account_info.get("account_id"),
-                            "is_sync": linked_account_info.get("is_sync", False),
-                        }
-                    )
-                )
-            else:
-                customer_tenants_info.append(
-                    CustomerInfo({"customer_id": customer_tenant_id, "is_sync": True})
-                )
-
-        return customer_tenants_info
+            for customer_tenant_id in customer_tenants:
+                if linked_account_info := linked_accounts_map.get(customer_tenant_id):
+                    if not linked_account_info.get("is_sync"):
+                        first_sync_customer_tenants.append(
+                            linked_account_info.get("account_id")
+                        )
+                        customer_tenants.remove(customer_tenant_id)
+        return customer_tenants, first_sync_customer_tenants
 
     @staticmethod
     def _get_divided_customer_tenants(customer_tenants_info: list) -> list:

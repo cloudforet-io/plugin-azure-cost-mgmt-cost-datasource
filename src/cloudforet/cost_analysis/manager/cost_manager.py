@@ -5,8 +5,6 @@ import time
 
 from typing import Union
 from datetime import datetime, timezone
-
-from dateutil.relativedelta import relativedelta
 from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
@@ -58,79 +56,26 @@ class CostManager(BaseManager):
         self._check_task_options(task_options)
 
         collect_scope: str = task_options["collect_scope"]
-        if collect_scope == "customer_tenant_id":
-            yield self._get_data_from_customers(options, secret_data, task_options)
-        else:
-            tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
-            start: datetime = self._get_first_date_of_month(task_options["start"])
-            end: datetime = datetime.utcnow()
-
-            monthly_time_period = self._make_monthly_time_period(start, end)
-            for time_period in monthly_time_period:
-                _start = time_period["start"]
-                _end = time_period["end"]
-                parameters = self._make_parameters(_start, _end, options)
-
-                start_time = time.time()
-                _LOGGER.info(
-                    f"[get_data] {tenant_ids} start to collect data from {_start} to {_end}"
-                )
-                for idx, tenant_id in enumerate(tenant_ids):
-                    _LOGGER.info(
-                        f"[get_data] #{idx + 1} {tenant_id} tenant start to collect data from {_start} to {_end}"
-                    )
-                    scope = self._make_scope(
-                        secret_data, task_options, collect_scope, tenant_id
-                    )
-                    blobs = self.azure_cm_connector.begin_create_operation(
-                        scope, parameters
-                    )
-
-                    response_stream = self.azure_cm_connector.get_cost_data(blobs)
-                    for results in response_stream:
-                        yield self._make_cost_data(
-                            results=results,
-                            end=_end,
-                            tenant_id=tenant_id,
-                            options=options,
-                        )
-                    _LOGGER.info(
-                        f"[get_data] #{idx + 1} {tenant_id} tenant collect is done"
-                    )
-                end_time = time.time()
-                _LOGGER.info(
-                    f"[get_data] all collect is done in {int(end_time - start_time)} seconds"
-                )
-            yield []
-
-    def _get_data_from_customers(
-        self,
-        options: dict,
-        secret_data: dict,
-        task_options: dict,
-    ):
-        tenants_info: list = task_options["customer_tenants"]
+        tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
         start: datetime = self._get_first_date_of_month(task_options["start"])
         end: datetime = datetime.utcnow()
 
-        start_time = time.time()
-        for idx, tenant_info in enumerate(tenants_info):
-            if not tenant_info.get("is_sync"):
-                start = self._get_start_sync_date()
+        monthly_time_period = self._make_monthly_time_period(start, end)
+        for time_period in monthly_time_period:
+            _start = time_period["start"]
+            _end = time_period["end"]
+            parameters = self._make_parameters(_start, _end, options)
 
-            tenant_id = tenant_info["customer_id"]
-            monthly_time_period = self._make_monthly_time_period(start, end)
-            for time_period in monthly_time_period:
-                _start = time_period["start"]
-                _end = time_period["end"]
-                parameters = self._make_parameters(_start, _end, options)
-
+            start_time = time.time()
+            _LOGGER.info(
+                f"[get_data] {tenant_ids} start to collect data from {_start} to {_end}"
+            )
+            for idx, tenant_id in enumerate(tenant_ids):
                 _LOGGER.info(
-                    f"[get_data] #{idx} {tenant_id} start to collect data from {_start} to {_end}"
+                    f"[get_data] #{idx + 1} {tenant_id} tenant start to collect data from {_start} to {_end}"
                 )
-
                 scope = self._make_scope(
-                    secret_data, task_options, "customer_tenant_id", tenant_id
+                    secret_data, task_options, collect_scope, tenant_id
                 )
                 blobs = self.azure_cm_connector.begin_create_operation(
                     scope, parameters
@@ -139,18 +84,15 @@ class CostManager(BaseManager):
                 response_stream = self.azure_cm_connector.get_cost_data(blobs)
                 for results in response_stream:
                     yield self._make_cost_data(
-                        results=results,
-                        end=_end,
-                        tenant_id=tenant_id,
-                        options=options,
+                        results=results, end=_end, tenant_id=tenant_id, options=options
                     )
                 _LOGGER.info(
                     f"[get_data] #{idx + 1} {tenant_id} tenant collect is done"
                 )
-        end_time = time.time()
-        _LOGGER.info(
-            f"[get_data_from_customers] all collect is done in {int(end_time - start_time)} seconds"
-        )
+            end_time = time.time()
+            _LOGGER.info(
+                f"[get_data] all collect is done in {int(end_time - start_time)} seconds"
+            )
         yield []
 
     def _make_cost_data(
@@ -312,7 +254,7 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _make_parameters(start: datetime, end: datetime, options: dict) -> dict:
-        parameters = {"timePeriod": {"from": start, "to": end}}
+        parameters = {"timePeriod": {"start": start, "end": end}}
 
         if options.get("cost_metric") == "AmortizedCost":
             parameters["metric"] = "AmortizedCost"
@@ -337,16 +279,13 @@ class CostManager(BaseManager):
         secret_data: dict,
         task_options: dict,
         collect_scope: str,
-        customer_tenant_id: Union[dict, str] = None,
+        customer_tenant_id: str = None,
     ):
         if collect_scope == "subscription_id":
             subscription_id = task_options["subscription_id"]
             scope = SCOPE_MAP[collect_scope].format(subscription_id=subscription_id)
         elif collect_scope == "customer_tenant_id":
             billing_account_id = secret_data.get("billing_account_id")
-            if isinstance(customer_tenant_id, dict):
-                customer_tenant_id = customer_tenant_id.get("customer_id")
-
             scope = SCOPE_MAP[collect_scope].format(
                 billing_account_id=billing_account_id,
                 customer_tenant_id=customer_tenant_id,
@@ -504,13 +443,3 @@ class CostManager(BaseManager):
             aggregate_data.update({"PayAsYouGo": pay_as_you_go_cost})
 
         return aggregate_data
-
-    def _get_start_sync_date(self) -> datetime:
-        start_time: datetime = datetime.utcnow() - relativedelta(months=9)
-        start_time = start_time.replace(day=1)
-
-        start_time = start_time.replace(
-            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-        )
-
-        return start_time

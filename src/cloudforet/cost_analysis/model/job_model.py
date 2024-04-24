@@ -5,18 +5,13 @@ from schematics.types.compound import ModelType
 __all__ = ["Tasks"]
 
 
-class CustomerInfo(Model):
-    customer_id = StringType(required=True)
-    is_sync = BooleanType(default=False)
-
-
 class TaskOptionsWithSubscription(Model):
     subscription_id = StringType(serialize_when_none=False)
     tenant_id = StringType(serialize_when_none=False)
 
 
 class TaskOptionsWithCustomerTenant(Model):
-    customer_tenants = ListType(ModelType(CustomerInfo), serialize_when_none=False)
+    customer_tenants = ListType(StringType, serialize_when_none=False)
 
 
 class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenant):
@@ -34,6 +29,7 @@ class TaskOptions(TaskOptionsWithSubscription, TaskOptionsWithCustomerTenant):
         ],
         serialize_when_none=False,
     )
+    is_sync = BooleanType(default=True)
 
 
 class Task(Model):
