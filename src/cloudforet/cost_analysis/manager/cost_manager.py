@@ -22,6 +22,33 @@ class CostManager(BaseManager):
             "AzureCostMgmtConnector"
         )
 
+    def get_linked_accounts(
+        self, options: dict, secret_data: dict, domain_id: str, schema
+    ) -> list:
+        self.azure_cm_connector.create_session(options, secret_data, schema)
+        billing_account_info = self.azure_cm_connector.get_billing_account()
+        agreement_type = billing_account_info.get("agreement_type")
+        accounts_info = []
+
+        if agreement_type == "MicrosoftPartnerAgreement":
+            billing_accounts_info = self.azure_cm_connector.list_billing_accounts()
+            customer_tenants = self._get_linked_customer_tenants(
+                secret_data, billing_accounts_info
+            )
+            accounts_info = self._make_accounts_info_from_customer_tenants(
+                billing_accounts_info, customer_tenants
+            )
+        elif agreement_type == "EnterpriseAgreement":
+            pass
+        elif agreement_type == "MicrosoftCustomerAgreement":
+            pass
+        else:
+            pass
+        _LOGGER.debug(
+            f"[get_linked_accounts] total accounts count: {len(accounts_info)}"
+        )
+        return accounts_info
+
     def get_data(
         self, options: dict, secret_data: dict, schema, task_options: dict
     ) -> list:
@@ -221,16 +248,41 @@ class CostManager(BaseManager):
 
         return cost
 
+    def get_pay_as_you_go_cost(self, result: dict, cost: float = 0.0) -> float:
+        if pay_g_billing_price := result.get("paygcostinbillingcurrency"):
+            cost_pay_as_you_go = pay_g_billing_price
+        elif pay_g_price := result.get("paygprice", 0.0):
+            usage_quantity = self._convert_str_to_float_format(
+                result.get("quantity", 0.0)
+            )
+            exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
+            cost_pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
+        else:
+            cost_pay_as_you_go = cost
+        return cost_pay_as_you_go
+
+    def _get_aggregate_data(self, result: dict, options: dict) -> dict:
+        aggregate_data = {}
+
+        if not options.get("pay_as_you_go", False):
+            pay_as_you_go_cost = self.get_pay_as_you_go_cost(result)
+            aggregate_data.update({"PayAsYouGo": pay_as_you_go_cost})
+
+        return aggregate_data
+
     @staticmethod
     def _get_region_code(resource_location: str) -> str:
         return resource_location.lower() if resource_location else resource_location
 
     @staticmethod
     def _make_parameters(start: datetime, end: datetime, options: dict) -> dict:
-        parameters = {
-            "metric": "ActualCost",
-            "timePeriod": {"start": start, "end": end},
-        }
+        parameters = {"timePeriod": {"start": start, "end": end}}
+
+        if options.get("cost_metric") == "AmortizedCost":
+            parameters["metric"] = "AmortizedCost"
+        else:
+            parameters["metric"] = "ActualCost"
+
         return parameters
 
     @staticmethod
@@ -379,6 +431,33 @@ class CostManager(BaseManager):
         return monthly_time_period
 
     @staticmethod
+    def _get_linked_customer_tenants(
+        secret_data: dict, billing_accounts_info: list
+    ) -> list:
+        customer_tenants = secret_data.get("customer_tenants", [])
+        if not customer_tenants:
+            customer_tenants = [
+                billing_account.get("customer_id")
+                for billing_account in billing_accounts_info
+            ]
+
+        return customer_tenants
+
+    @staticmethod
+    def _make_accounts_info_from_customer_tenants(
+        billing_accounts_info: list, customer_tenants: list
+    ) -> list:
+        accounts_info = []
+        for billing_account_info in billing_accounts_info:
+            if billing_account_info.get("customer_id") in customer_tenants:
+                account_info = {
+                    "account_id": billing_account_info.get("customer_id"),
+                    "name": billing_account_info.get("display_name"),
+                }
+                accounts_info.append(account_info)
+        return accounts_info
+
+    @staticmethod
     def _check_task_options(task_options):
         if "collect_scope" not in task_options:
             raise ERROR_REQUIRED_PARAMETER(key="task_options.collect_scope")
@@ -391,25 +470,3 @@ class CostManager(BaseManager):
                 raise ERROR_REQUIRED_PARAMETER(key="task_options.subscription_id")
         elif task_options["collect_scope"] == "customer_tenants":
             raise ERROR_REQUIRED_PARAMETER(key="task_options.customer_tenants")
-
-    def get_pay_as_you_go_cost(self, result: dict, cost: float = 0.0) -> float:
-        if pay_g_billing_price := result.get("paygcostinbillingcurrency"):
-            cost_pay_as_you_go = pay_g_billing_price
-        elif pay_g_price := result.get("paygprice", 0.0):
-            usage_quantity = self._convert_str_to_float_format(
-                result.get("quantity", 0.0)
-            )
-            exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
-            cost_pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
-        else:
-            cost_pay_as_you_go = cost
-        return cost_pay_as_you_go
-
-    def _get_aggregate_data(self, result: dict, options: dict) -> dict:
-        aggregate_data = {}
-
-        if not options.get("pay_as_you_go", False):
-            pay_as_you_go_cost = self.get_pay_as_you_go_cost(result)
-            aggregate_data.update({"PayAsYouGo": pay_as_you_go_cost})
-
-        return aggregate_data

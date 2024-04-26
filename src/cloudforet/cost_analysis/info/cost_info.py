@@ -4,9 +4,23 @@ from spaceone.api.cost_analysis.plugin import cost_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
 
-__all__ = ["CostInfo", "CostsInfo"]
+__all__ = ["CostInfo", "CostsInfo", "AccountInfo", "AccountsInfo"]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def AccountInfo(account_data):
+    try:
+        info = {
+            "account_id": account_data["account_id"],
+            "name": account_data["name"],
+        }
+        return cost_pb2.AccountInfo(**info)
+
+    except Exception as e:
+        _LOGGER.debug(f"[AccountInfo] account data: {account_data}")
+        _LOGGER.debug(f"[AccountInfo] error reason: {e}", exc_info=True)
+        raise e
 
 
 def CostInfo(cost_data):
@@ -36,6 +50,12 @@ def CostInfo(cost_data):
         _LOGGER.debug(f"[CostInfo] cost data: {cost_data}")
         _LOGGER.debug(f"[CostInfo] error reason: {e}", exc_info=True)
         raise e
+
+
+def AccountsInfo(accounts_data, **kwargs):
+    return cost_pb2.AccountsInfo(
+        results=list(map(functools.partial(AccountInfo, **kwargs), accounts_data))
+    )
 
 
 def CostsInfo(costs_data, **kwargs):

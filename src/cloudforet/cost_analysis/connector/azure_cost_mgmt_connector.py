@@ -60,15 +60,21 @@ class AzureCostMgmtConnector(BaseConnector):
             billing_account_name=billing_account_name
         )
         for billing_account in billing_accounts:
-            billing_accounts_info.append({"customer_id": billing_account.name})
+            billing_accounts_info.append(
+                {
+                    "display_name": billing_account.display_name,
+                    "customer_id": billing_account.name,
+                }
+            )
 
         return billing_accounts_info
 
-    def get_billing_account(self):
+    def get_billing_account(self) -> dict:
         billing_account_name = self.billing_account_id
         billing_account_info = self.billing_client.billing_accounts.get(
             billing_account_name=billing_account_name
         )
+        billing_account_info = self.convert_nested_dictionary(billing_account_info)
         return billing_account_info
 
     def query_http(self, scope, secret_data, parameters, **kwargs):
