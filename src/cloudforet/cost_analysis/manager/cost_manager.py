@@ -109,6 +109,9 @@ class CostManager(BaseManager):
                 if not billed_date:
                     continue
 
+                if self._skip_cost_data_rule(result):
+                    continue
+
                 data = self._make_data_info(result, billed_date, options, tenant_id)
                 costs_data.append(data)
 
@@ -222,9 +225,6 @@ class CostManager(BaseManager):
         if result.get("productname"):
             additional_info["Product Name"] = result["productname"]
 
-        if result.get("unitprice") != "" and result.get("unitprice"):
-            additional_info["Unit Price"] = result["unitprice"]
-
         if result.get("customername") != "" and result.get("customername"):
             additional_info["Customer Name"] = result["customername"]
 
@@ -243,7 +243,7 @@ class CostManager(BaseManager):
         cost = self._convert_str_to_float_format(
             result.get("costinbillingcurrency", 0.0)
         )
-        if options.get("pay_as_you_go", False) and result.get("chargetype") == "Usage":
+        if options.get("pay_as_you_go", False):
             cost = self.get_pay_as_you_go_cost(result, cost)
 
         return cost
@@ -470,3 +470,9 @@ class CostManager(BaseManager):
                 raise ERROR_REQUIRED_PARAMETER(key="task_options.subscription_id")
         elif task_options["collect_scope"] == "customer_tenants":
             raise ERROR_REQUIRED_PARAMETER(key="task_options.customer_tenants")
+
+    @staticmethod
+    def _skip_cost_data_rule(result: dict) -> bool:
+        if result.get("customertenentname") and not result.get("customertenantid"):
+            return True
+        return False
