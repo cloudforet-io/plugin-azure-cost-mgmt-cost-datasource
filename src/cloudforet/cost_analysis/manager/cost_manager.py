@@ -97,7 +97,7 @@ class CostManager(BaseManager):
 
     def _make_cost_data(
         self, results: list, end: datetime, options: dict, tenant_id: str = None
-    ):
+    ) -> list:
         """Source Data Model"""
 
         costs_data = []
@@ -249,9 +249,12 @@ class CostManager(BaseManager):
         return cost
 
     def get_pay_as_you_go_cost(self, result: dict, cost: float = 0.0) -> float:
-        if pay_g_billing_price := result.get("paygcostinbillingcurrency"):
-            cost_pay_as_you_go = pay_g_billing_price
-        elif pay_g_price := result.get("paygprice", 0.0):
+        if "paygcostinbillingcurrency" in result:
+            cost_pay_as_you_go = result.get("paygcostinbillingcurrency", 0.0)
+        elif "paygprice" in result:
+            pay_g_price = self._convert_str_to_float_format(
+                result.get("paygprice", 0.0)
+            )
             usage_quantity = self._convert_str_to_float_format(
                 result.get("quantity", 0.0)
             )

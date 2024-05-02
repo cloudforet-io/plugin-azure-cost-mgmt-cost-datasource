@@ -73,11 +73,10 @@ class JobManager(BaseManager):
                             }
                         }
                     )
-                    changed.append({"start": start_month})
-                    synced_accounts.extend(
-                        {"account_id": tenant_id}
-                        for tenant_id in divided_customer_tenant_info
+                    synced_accounts = self._extend_synced_accounts(
+                        synced_accounts, divided_customer_tenant_info
                     )
+                changed.append({"start": start_month})
                 if first_sync_tenants:
                     first_sync_start_month = self._get_start_month(start=None)
                     tasks.append(
@@ -91,9 +90,15 @@ class JobManager(BaseManager):
                             }
                         }
                     )
-                    changed.append({"start": first_sync_start_month})
-                    synced_accounts.extend(
-                        {"account_id": tenant_id} for tenant_id in first_sync_tenants
+                    for tenant_id in first_sync_tenants:
+                        changed.append(
+                            {
+                                "start": first_sync_start_month,
+                                "filter": {"additional_info.Tenant Id": tenant_id},
+                            }
+                        )
+                    synced_accounts = self._extend_synced_accounts(
+                        synced_accounts, first_sync_tenants
                     )
             else:
                 tasks = [
@@ -167,26 +172,33 @@ class JobManager(BaseManager):
         if len(customer_tenants) == 0:
             raise ERROR_EMPTY_CUSTOMER_TENANTS(customer_tenants=customer_tenants)
 
-        if linked_accounts:
-            linked_accounts_map = {
-                linked_account["account_id"]: linked_account
-                for linked_account in linked_accounts
-            }
-
-            for customer_tenant_id in customer_tenants:
-                if linked_account_info := linked_accounts_map.get(customer_tenant_id):
-                    if not linked_account_info.get("is_sync"):
-                        first_sync_customer_tenants.append(
-                            linked_account_info.get("account_id")
-                        )
-                        customer_tenants.remove(customer_tenant_id)
-                else:
-                    _LOGGER.debug(
-                        f"[_get_customer_tenants] Customer tenant is not linked: {linked_account_info}"
-                    )
-                    customer_tenants.remove(customer_tenant_id)
+        # if linked_accounts:
+        #     linked_accounts_map = {
+        #         linked_account["account_id"]: linked_account
+        #         for linked_account in linked_accounts
+        #     }
+        #
+        #     for customer_tenant_id in customer_tenants:
+        #         if linked_account_info := linked_accounts_map.get(customer_tenant_id):
+        #             if not linked_account_info.get("is_sync"):
+        #                 first_sync_customer_tenants.append(
+        #                     linked_account_info.get("account_id")
+        #                 )
+        #                 customer_tenants.remove(customer_tenant_id)
+        #         else:
+        #             _LOGGER.debug(
+        #                 f"[_get_customer_tenants] Customer tenant is not linked: {linked_account_info}"
+        #             )
+        #             customer_tenants.remove(customer_tenant_id)
 
         return customer_tenants, first_sync_customer_tenants
+
+    @staticmethod
+    def _extend_synced_accounts(synced_accounts: list, customer_tenants: list) -> list:
+        synced_accounts.extend(
+            {"account_id": tenant_id} for tenant_id in customer_tenants
+        )
+        return synced_accounts
 
     @staticmethod
     def _get_divided_customer_tenants(customer_tenants_info: list) -> list:
