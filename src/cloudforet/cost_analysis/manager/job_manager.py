@@ -73,9 +73,10 @@ class JobManager(BaseManager):
                             }
                         }
                     )
-                    synced_accounts = self._extend_synced_accounts(
-                        synced_accounts, divided_customer_tenant_info
-                    )
+                    if linked_accounts:
+                        synced_accounts = self._extend_synced_accounts(
+                            synced_accounts, divided_customer_tenant_info
+                        )
                 changed.append({"start": start_month})
                 if first_sync_tenants:
                     first_sync_start_month = self._get_start_month(start=None)
@@ -97,9 +98,10 @@ class JobManager(BaseManager):
                                 "filter": {"additional_info.Tenant Id": tenant_id},
                             }
                         )
-                    synced_accounts = self._extend_synced_accounts(
-                        synced_accounts, first_sync_tenants
-                    )
+                    if linked_accounts:
+                        synced_accounts = self._extend_synced_accounts(
+                            synced_accounts, first_sync_tenants
+                        )
             else:
                 tasks = [
                     {
