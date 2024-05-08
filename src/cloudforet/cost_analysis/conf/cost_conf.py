@@ -9,27 +9,10 @@ AGGREGATION = {
     "UsageQuantity": {"name": "UsageQuantity", "function": "Sum"},
 }
 
-GROUPING = [
-    {"type": "Dimension", "name": "ResourceGroup"},
-    {"type": "Dimension", "name": "ResourceType"},
-    {"type": "Dimension", "name": "ResourceLocation"},
-    {"type": "Dimension", "name": "SubscriptionId"},
-    {"type": "Dimension", "name": "SubscriptionName"},
-    {"type": "Dimension", "name": "MeterCategory"},
-    {"type": "Dimension", "name": "Meter"},
-    {"type": "Dimension", "name": "UnitOfMeasure"},
-    {"type": "Dimension", "name": "BenefitName"},
-    {"type": "Dimension", "name": "PricingModel"},
-    {"type": "Dimension", "name": "MeterSubcategory"},
-]
-
 GROUPING_EA_AGREEMENT_OPTION = [
     {"type": "Dimension", "name": "DepartmentName"},
     {"type": "Dimension", "name": "EnrollmentAccountName"},
 ]
-GROUPING_CUSTOMER_TENANT_OPTION = {"type": "Dimension", "name": "CustomerTenantId"}
-GROUPING_TAG_OPTION = {"type": "Tag", "name": ""}
-GROUPING_RESOURCE_ID_OPTION = {"type": "Dimension", "name": "ResourceId"}
 
 REGION_MAP = {
     "global": "Global",
@@ -68,3 +51,5 @@ SCOPE_MAP = {
     "billing_account_id": "providers/Microsoft.Billing/billingAccounts/{billing_account_id}",
     "customer_tenant_id": "providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{customer_tenant_id}",
 }
+
+EXCLUDE_LICENSE_SERVICE_FAMILY = ["Office 365 Global"]

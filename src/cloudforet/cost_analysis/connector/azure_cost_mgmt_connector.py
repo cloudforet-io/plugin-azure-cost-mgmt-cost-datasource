@@ -77,36 +77,6 @@ class AzureCostMgmtConnector(BaseConnector):
         billing_account_info = self.convert_nested_dictionary(billing_account_info)
         return billing_account_info
 
-    def query_http(self, scope, secret_data, parameters, **kwargs):
-        try:
-            api_version = "2023-03-01"
-            self.next_link = f"https://management.azure.com/{scope}/providers/Microsoft.CostManagement/query?api-version={api_version}"
-
-            while self.next_link:
-                url = self.next_link
-
-                headers = self._make_request_headers(
-                    client_type=secret_data.get("client_id")
-                )
-                response = requests.post(url=url, headers=headers, json=parameters)
-                response_json = response.json()
-
-                if response_json.get("error"):
-                    response_json = self._retry_request(
-                        response=response,
-                        url=url,
-                        headers=headers,
-                        json=parameters,
-                        retry_count=RETRY_COUNT,
-                        method="post",
-                        **kwargs,
-                    )
-
-                self.next_link = response_json.get("properties").get("nextLink", None)
-                yield response_json
-        except Exception as e:
-            raise ERROR_UNKNOWN(message=f"[ERROR] query_http {e}")
-
     def begin_create_operation(self, scope: str, parameters: dict) -> list:
         try:
             content_type = "application/json"
@@ -128,7 +98,7 @@ class AzureCostMgmtConnector(BaseConnector):
             _LOGGER.error(f"[begin_create_operation] error message: {e}")
             raise ERROR_UNKNOWN(message=f"[ERROR] begin_create_operation failed")
 
-    def get_cost_data(self, blobs: list) -> list:
+    def get_cost_data(self, blobs: list, options: dict) -> list:
         for blob in blobs:
             cost_csv = self._download_cost_data(blob)
 
@@ -137,7 +107,9 @@ class AzureCostMgmtConnector(BaseConnector):
 
             costs_data = df.to_dict("records")
 
-            _LOGGER.debug(f"[get_cost_data] costs count: {len(costs_data)}")
+            _LOGGER.debug(
+                f"[get_cost_data] costs count: {len(costs_data)}, options: {options}"
+            )
 
             # Paginate
             page_count = int(len(costs_data) / _PAGE_SIZE) + 1
@@ -162,43 +134,6 @@ class AzureCostMgmtConnector(BaseConnector):
             headers["ClientType"] = client_type
 
         return headers
-
-    def _retry_request(
-        self, response, url, headers, json, retry_count, method="post", **kwargs
-    ):
-        try:
-            _LOGGER.debug(f"{datetime.utcnow()}[INFO] retry_request {response.headers}")
-            if retry_count == 0:
-                raise ERROR_UNKNOWN(
-                    message=f"[ERROR] retry_request failed {response.json()}"
-                )
-            elif response.status_code == 400:
-                raise ERROR_UNKNOWN(
-                    message=f"[ERROR] retry_request failed {response.json()}"
-                )
-
-            _sleep_time = self._get_sleep_time(response.headers)
-            time.sleep(_sleep_time)
-
-            if method == "post":
-                response = requests.post(url=url, headers=headers, json=json)
-            else:
-                response = requests.get(url=url, headers=headers, json=json)
-            response_json = response.json()
-
-            if response_json.get("error"):
-                response_json = self._retry_request(
-                    response=response,
-                    url=url,
-                    headers=headers,
-                    json=json,
-                    retry_count=retry_count - 1,
-                    method=method,
-                )
-            return response_json
-        except Exception as e:
-            _LOGGER.error(f"[ERROR] retry_request failed {e}")
-            raise e
 
     def convert_nested_dictionary(self, cloud_svc_object):
         cloud_svc_dict = {}
