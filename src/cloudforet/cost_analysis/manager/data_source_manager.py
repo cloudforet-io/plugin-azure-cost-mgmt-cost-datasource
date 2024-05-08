@@ -27,6 +27,9 @@ class DataSourceManager(BaseManager):
             plugin_metadata.use_account_routing = True
             plugin_metadata.account_match_key = "additional_info.Tenant Id"
 
+        if options.get("exclude_license_cost"):
+            plugin_metadata.exclude_license_cost = True
+
         plugin_metadata.validate()
         return {"metadata": plugin_metadata.to_primitive()}
 

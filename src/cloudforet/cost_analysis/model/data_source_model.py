@@ -63,3 +63,4 @@ class PluginMetadata(Model):
     use_account_routing = BooleanType(default=False)
     alias = DictType(StringType, default={})
     account_match_key = StringType(default=None)
+    exclude_license_cost = BooleanType(default=False)
