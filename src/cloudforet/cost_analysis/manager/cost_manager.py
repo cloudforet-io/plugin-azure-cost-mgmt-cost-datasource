@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
         self.azure_cm_connector: AzureCostMgmtConnector = self.locator.get_connector(
             "AzureCostMgmtConnector"
         )
