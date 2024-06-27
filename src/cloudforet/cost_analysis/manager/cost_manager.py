@@ -24,7 +24,7 @@ class CostManager(BaseManager):
         )
 
     def get_linked_accounts(
-        self, options: dict, secret_data: dict, domain_id: str, schema
+            self, options: dict, secret_data: dict, domain_id: str, schema
     ) -> list:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         billing_account_info = self.azure_cm_connector.get_billing_account()
@@ -51,11 +51,12 @@ class CostManager(BaseManager):
         return accounts_info
 
     def get_data(
-        self, options: dict, secret_data: dict, schema, task_options: dict
+            self, options: dict, secret_data: dict, schema, task_options: dict
     ) -> list:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
+        agreement_type: str = task_options.get("agreement_type")
         collect_scope: str = task_options["collect_scope"]
         tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
         start: datetime = self._get_first_date_of_month(task_options["start"])
@@ -85,7 +86,11 @@ class CostManager(BaseManager):
                 response_stream = self.azure_cm_connector.get_cost_data(blobs, options)
                 for results in response_stream:
                     yield self._make_cost_data(
-                        results=results, end=_end, tenant_id=tenant_id, options=options
+                        results=results,
+                        end=_end,
+                        tenant_id=tenant_id,
+                        options=options,
+                        agreement_type=agreement_type,
                     )
                 _LOGGER.info(
                     f"[get_data] #{idx + 1} {tenant_id} tenant collect is done"
@@ -97,7 +102,12 @@ class CostManager(BaseManager):
         yield []
 
     def _make_cost_data(
-        self, results: list, end: datetime, options: dict, tenant_id: str = None
+            self,
+            results: list,
+            end: datetime,
+            options: dict,
+            tenant_id: str = None,
+            agreement_type: str = None,
     ) -> list:
         """Source Data Model"""
 
@@ -113,7 +123,13 @@ class CostManager(BaseManager):
                 if self._exclude_cost_data_with_options(result, options):
                     continue
 
-                data = self._make_data_info(result, billed_date, options, tenant_id)
+                data = self._make_data_info(
+                    result,
+                    billed_date,
+                    options,
+                    tenant_id,
+                    agreement_type=agreement_type,
+                )
                 costs_data.append(data)
 
         except Exception as e:
@@ -123,20 +139,27 @@ class CostManager(BaseManager):
         return costs_data
 
     def _make_data_info(
-        self, result: dict, billed_date: str, options: dict, tenant_id: str = None
+            self,
+            result: dict,
+            billed_date: str,
+            options: dict,
+            tenant_id: str = None,
+            agreement_type: str = None,
     ):
-        additional_info = self._get_additional_info(result, options, tenant_id)
-        cost = self._get_cost_from_result_with_options(result, options)
-        usage_quantity = self._convert_str_to_float_format(result.get("quantity", 0.0))
-        usage_type = result.get("metername", "")
-        usage_unit = str(result.get("unitofmeasure", ""))
-        region_code = self._get_region_code(result.get("resourcelocation", ""))
-        product = result.get("metercategory", "")
-        tags = self._convert_tags_str_to_dict(result.get("tags"))
+        additional_info: dict = self._get_additional_info(result, options, tenant_id)
+        cost: float = self._get_cost_from_result_with_options(result, options)
+        usage_quantity: float = self._convert_str_to_float_format(
+            result.get("quantity", 0.0)
+        )
+        usage_type: str = result.get("metername", "")
+        usage_unit: str = str(result.get("unitofmeasure", ""))
+        region_code: str = self._get_region_code(result.get("resourcelocation", ""))
+        product: str = result.get("metercategory", "")
+        tags: dict = self._convert_tags_str_to_dict(result.get("tags"))
 
         aggregate_data = self._get_aggregate_data(result, options)
         # Set Network Traffic Cost at Additional Info
-        additional_info = self._set_network_traffic_cost(
+        additional_info: dict = self._set_network_traffic_cost(
             additional_info, product, usage_type
         )
 
@@ -169,7 +192,7 @@ class CostManager(BaseManager):
         additional_info["Tenant Id"] = tenant_id
         additional_info["Subscription Id"] = result.get("subscriptionid", "Shared")
 
-        if meter_category == "Virtual Machines" and "Meter" in result:
+        if meter_category == "Virtual Machines":
             additional_info["Instance Type"] = result["metername"]
 
         if result.get("resourcegroupname") != "" and result.get("resourcegroupname"):
@@ -188,8 +211,8 @@ class CostManager(BaseManager):
             additional_info["Benefit Name"] = benefit_name
 
             if (
-                result.get("pricingmodel") == "Reservation"
-                and result["metercategory"] == ""
+                    result.get("pricingmodel") == "Reservation"
+                    and result["metercategory"] == ""
             ):
                 result["metercategory"] = self._set_product_from_benefit_name(
                     benefit_name
@@ -200,14 +223,14 @@ class CostManager(BaseManager):
         if result.get("metersubcategory") != "" and result.get("metersubcategory"):
             additional_info["Meter SubCategory"] = result.get("metersubcategory")
             if (
-                result.get("pricingmodel") == "OnDemand"
-                and result.get("metercategory") == ""
+                    result.get("pricingmodel") == "OnDemand"
+                    and result.get("metercategory") == ""
             ):
                 result["metercategory"] = result.get("metercategory")
 
         if result.get("customername") is None:
             if result.get("invoicesectionname") != "" and result.get(
-                "invoicesectionname"
+                    "invoicesectionname"
             ):
                 additional_info["Department Name"] = result.get("invoicesectionname")
             elif result.get("departmentname") != "" and result.get("departmentname"):
@@ -216,15 +239,15 @@ class CostManager(BaseManager):
         if result.get("accountname") != "" and result.get("accountname"):
             additional_info["Enrollment Account Name"] = result["accountname"]
         elif result.get("enrollmentaccountname") != "" and result.get(
-            "enrollmentaccountname"
+                "enrollmentaccountname"
         ):
             additional_info["Enrollment Account Name"] = result["enrollmentaccountname"]
 
         collect_resource_id = options.get("collect_resource_id", False)
         if (
-            collect_resource_id
-            and result.get("resourceid") != ""
-            and result.get("resourceid")
+                collect_resource_id
+                and result.get("resourceid") != ""
+                and result.get("resourceid")
         ):
             additional_info["Resource Id"] = result["resourceid"]
             additional_info["Resource Name"] = result["resourceid"].split("/")[-1]
@@ -308,10 +331,10 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _make_scope(
-        secret_data: dict,
-        task_options: dict,
-        collect_scope: str,
-        customer_tenant_id: str = None,
+            secret_data: dict,
+            task_options: dict,
+            collect_scope: str,
+            customer_tenant_id: str = None,
     ):
         if collect_scope == "subscription_id":
             subscription_id = task_options["subscription_id"]
@@ -412,7 +435,7 @@ class CostManager(BaseManager):
         return datetime.strptime(date_format, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     def _make_monthly_time_period(
-        self, start_date: datetime, end_date: datetime
+            self, start_date: datetime, end_date: datetime
     ) -> list:
         monthly_time_period = []
         current_date = end_date
@@ -442,7 +465,7 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _get_linked_customer_tenants(
-        secret_data: dict, billing_accounts_info: list
+            secret_data: dict, billing_accounts_info: list
     ) -> list:
         customer_tenants = secret_data.get("customer_tenants", [])
         if not customer_tenants:
@@ -455,7 +478,7 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _make_accounts_info_from_customer_tenants(
-        billing_accounts_info: list, customer_tenants: list
+            billing_accounts_info: list, customer_tenants: list
     ) -> list:
         accounts_info = []
         for billing_account_info in billing_accounts_info:
@@ -493,7 +516,7 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _set_network_traffic_cost(
-        additional_info: dict, product: str, usage_type: str
+            additional_info: dict, product: str, usage_type: str
     ) -> dict:
         if product in ["Bandwidth", "Content Delivery Network"]:
             additional_info["Usage Type Details"] = usage_type
