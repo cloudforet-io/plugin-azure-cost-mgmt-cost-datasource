@@ -54,6 +54,11 @@ class DataSourceRule(Model):
     tags = DictType(StringType, default={})
 
 
+class MetadataDataInfo(Model):
+    name = StringType(required=True)
+    unit = StringType(required=True)
+
+
 class PluginMetadata(Model):
     data_source_rules = ListType(
         ModelType(DataSourceRule), default=_DEFAULT_DATA_SOURCE_RULES
@@ -64,3 +69,5 @@ class PluginMetadata(Model):
     alias = DictType(StringType, default={})
     account_match_key = StringType(default=None)
     exclude_license_cost = BooleanType(default=False)
+    cost_info = DictType(StringType, default={})
+    data_info = DictType(ModelType(MetadataDataInfo), default={})

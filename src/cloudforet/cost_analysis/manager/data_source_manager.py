@@ -17,11 +17,24 @@ class DataSourceManager(BaseManager):
             plugin_metadata.currency = currency
 
         if options.get("pay_as_you_go"):
-            plugin_metadata.alias.update({"cost": "PayAsYouGo"})
+            plugin_metadata.cost_info = {
+                "name": "PayAsYouGo",
+                "unit": options.get("currency", "KRW"),
+            }
         elif options.get("cost_metric") == "AmortizedCost":
-            plugin_metadata.alias.update({"cost": "Amortized Cost"})
+            plugin_metadata.cost_info = {
+                "name": "Amortized Cost",
+                "unit": options.get("currency", "KRW"),
+            }
         else:
-            plugin_metadata.alias.update({"cost": "Actual Cost"})
+            plugin_metadata.cost_info = {
+                "name": "Actual Cost",
+                "unit": options.get("currency", "KRW"),
+            }
+            plugin_metadata.data_info["PayAsYouGo"] = {
+                "name": "PayAsYouGo",
+                "unit": options.get("currency", "KRW"),
+            }
 
         if options.get("use_account_routing"):
             plugin_metadata.use_account_routing = True
