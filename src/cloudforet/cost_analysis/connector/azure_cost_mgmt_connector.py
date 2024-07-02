@@ -120,6 +120,8 @@ class AzureCostMgmtConnector(BaseConnector):
                 offset = _PAGE_SIZE * page_num
                 yield costs_data[offset : offset + _PAGE_SIZE]
 
+            del df
+
     def list_by_billing_account(self):
         billing_account_name = self.billing_account_id
         return self.billing_client.billing_subscriptions.list_by_billing_account(
