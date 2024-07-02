@@ -26,6 +26,10 @@ class DataSourceManager(BaseManager):
                 "name": "Amortized Cost",
                 "unit": options.get("currency", "KRW"),
             }
+            plugin_metadata.data_info["PayAsYouGo"] = {
+                "name": "PayAsYouGo",
+                "unit": options.get("currency", "KRW"),
+            }
         else:
             plugin_metadata.cost_info = {
                 "name": "Actual Cost",

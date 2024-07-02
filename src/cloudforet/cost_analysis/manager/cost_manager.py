@@ -207,6 +207,9 @@ class CostManager(BaseManager):
         if result.get("pricingmodel") != "" and result.get("pricingmodel"):
             additional_info["Pricing Model"] = result["pricingmodel"]
 
+        if result.get("reservationname") != "" and result.get("reservationname"):
+            additional_info["Reservation Name"] = result["reservationname"]
+
         if result.get("benefitname") != "" and result.get("benefitname"):
             benefit_name = result["benefitname"]
             additional_info["Benefit Name"] = benefit_name
@@ -243,6 +246,9 @@ class CostManager(BaseManager):
             "enrollmentaccountname"
         ):
             additional_info["Enrollment Account Name"] = result["enrollmentaccountname"]
+
+        if result.get("chargetype") != "" and result.get("chargetype"):
+            additional_info["Charge Type"] = result["chargetype"]
 
         collect_resource_id = options.get("collect_resource_id", False)
         if (
