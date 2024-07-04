@@ -101,26 +101,25 @@ class AzureCostMgmtConnector(BaseConnector):
             raise ERROR_UNKNOWN(message=f"[ERROR] begin_create_operation failed")
 
     def get_cost_data(self, blobs: list, options: dict) -> list:
+        _LOGGER.debug(f"[get_cost_data] options: {options}")
+
+        total_cost_count = 0
         for blob in blobs:
             cost_csv = self._download_cost_data(blob)
 
-            df = pd.read_csv(StringIO(cost_csv), low_memory=False)
-            df = df.replace({np.nan: None})
-
-            costs_data = df.to_dict("records")
-
-            _LOGGER.debug(
-                f"[get_cost_data] costs count: {len(costs_data)}, options: {options}"
+            df_chunk = pd.read_csv(
+                StringIO(cost_csv), low_memory=False, chunksize=_PAGE_SIZE
             )
 
-            # Paginate
-            page_count = int(len(costs_data) / _PAGE_SIZE) + 1
+            for df in df_chunk:
+                df = df.replace({np.nan: None})
 
-            for page_num in range(page_count):
-                offset = _PAGE_SIZE * page_num
-                yield costs_data[offset : offset + _PAGE_SIZE]
+                costs_data = df.to_dict("records")
+                total_cost_count += len(costs_data)
+                yield costs_data
 
-            del df
+            del cost_csv
+        _LOGGER.debug(f"[get_cost_data] total_cost_count: {total_cost_count}")
 
     def list_by_billing_account(self):
         billing_account_name = self.billing_account_id

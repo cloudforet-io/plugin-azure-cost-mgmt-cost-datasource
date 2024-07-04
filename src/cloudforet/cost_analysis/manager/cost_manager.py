@@ -79,6 +79,7 @@ class CostManager(BaseManager):
                 scope = self._make_scope(
                     secret_data, task_options, collect_scope, tenant_id
                 )
+
                 blobs = self.azure_cm_connector.begin_create_operation(
                     scope, parameters
                 )
@@ -221,6 +222,7 @@ class CostManager(BaseManager):
                 result["metercategory"] = self._set_product_from_benefit_name(
                     benefit_name
                 )
+
         if result.get("benefitid") != "" and result.get("benefitid"):
             additional_info["Benefit Id"] = result["benefitid"]
 
