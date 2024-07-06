@@ -117,7 +117,7 @@ class AzureCostMgmtConnector(BaseConnector):
                 costs_data = df.to_dict("records")
                 total_cost_count += len(costs_data)
                 yield costs_data
-
+            del df_chunk
             del cost_csv
         _LOGGER.debug(f"[get_cost_data] total_cost_count: {total_cost_count}")
 
