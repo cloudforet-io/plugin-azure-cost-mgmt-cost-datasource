@@ -16,27 +16,19 @@ class DataSourceManager(BaseManager):
         if currency := options.get("currency"):
             plugin_metadata.currency = currency
 
-        if options.get("pay_as_you_go"):
-            plugin_metadata.cost_info = {
-                "name": "PayAsYouGo",
-                "unit": options.get("currency", "KRW"),
-            }
-        elif options.get("cost_metric") == "AmortizedCost":
-            plugin_metadata.cost_info = {
+        plugin_metadata.cost_info = {
+            "name": "PayAsYouGo",
+            "unit": options.get("currency", "KRW"),
+        }
+
+        if options.get("cost_metric") == "AmortizedCost":
+            plugin_metadata.data_info["Amortized Cost"] = {
                 "name": "Amortized Cost",
                 "unit": options.get("currency", "KRW"),
             }
-            plugin_metadata.data_info["PayAsYouGo"] = {
-                "name": "PayAsYouGo",
-                "unit": options.get("currency", "KRW"),
-            }
         else:
-            plugin_metadata.cost_info = {
+            plugin_metadata.data_info["Actual Cost"] = {
                 "name": "Actual Cost",
-                "unit": options.get("currency", "KRW"),
-            }
-            plugin_metadata.data_info["PayAsYouGo"] = {
-                "name": "PayAsYouGo",
                 "unit": options.get("currency", "KRW"),
             }
 

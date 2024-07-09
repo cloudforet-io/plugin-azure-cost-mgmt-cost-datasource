@@ -279,15 +279,10 @@ class CostManager(BaseManager):
         return additional_info
 
     def _get_cost_from_result_with_options(self, result: dict, options: dict) -> float:
-        cost = self._convert_str_to_float_format(
-            result.get("costinbillingcurrency", 0.0)
-        )
-        if options.get("pay_as_you_go", False):
-            cost = self.get_pay_as_you_go_cost(result, cost)
-
+        cost = self.get_pay_as_you_go_cost(result)
         return cost
 
-    def get_pay_as_you_go_cost(self, result: dict, cost: float = 0.0) -> float:
+    def get_pay_as_you_go_cost(self, result: dict) -> float:
         if "paygcostinbillingcurrency" in result:
             cost_pay_as_you_go = result.get("paygcostinbillingcurrency", 0.0)
         elif "paygprice" in result:
@@ -300,15 +295,21 @@ class CostManager(BaseManager):
             exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
             cost_pay_as_you_go = pay_g_price * usage_quantity * exchange_rate
         else:
-            cost_pay_as_you_go = cost
+            cost_pay_as_you_go = 0.0
+
         return cost_pay_as_you_go
 
     def _get_aggregate_data(self, result: dict, options: dict) -> dict:
         aggregate_data = {}
 
-        if not options.get("pay_as_you_go", False):
-            pay_as_you_go_cost = self.get_pay_as_you_go_cost(result)
-            aggregate_data.update({"PayAsYouGo": pay_as_you_go_cost})
+        if options.get("cost_metric") == "AmortizedCost":
+            aggregate_data["Amortized Cost"] = self._convert_str_to_float_format(
+                result.get("amortizedcostinbillingcurrency", 0.0)
+            )
+        else:
+            aggregate_data["Actual Cost"] = self._convert_str_to_float_format(
+                result.get("costinbillingcurrency", 0.0)
+            )
 
         return aggregate_data
 
