@@ -59,6 +59,11 @@ class MetadataDataInfo(Model):
     unit = StringType(required=True)
 
 
+class MetadataAdditionalInfo(Model):
+    name = StringType(required=True)
+    visible = BooleanType(default=False)
+
+
 class PluginMetadata(Model):
     data_source_rules = ListType(
         ModelType(DataSourceRule), default=_DEFAULT_DATA_SOURCE_RULES
@@ -71,4 +76,4 @@ class PluginMetadata(Model):
     exclude_license_cost = BooleanType(default=False)
     cost_info = DictType(StringType, default={})
     data_info = DictType(ModelType(MetadataDataInfo), default={})
-    additional_info = ListType(StringType, default=[])
+    additional_info = DictType(ModelType(MetadataAdditionalInfo), default={})
