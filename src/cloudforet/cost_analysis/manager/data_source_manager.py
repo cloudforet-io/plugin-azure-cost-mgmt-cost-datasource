@@ -13,6 +13,14 @@ class DataSourceManager(BaseManager):
     @staticmethod
     def init_response(options):
         plugin_metadata = PluginMetadata()
+
+        plugin_metadata.additional_info = [
+            "Unit Price",
+            "Resource Id",
+            "Subscription Id",
+            "Charge Type",
+        ]
+
         if currency := options.get("currency"):
             plugin_metadata.currency = currency
 

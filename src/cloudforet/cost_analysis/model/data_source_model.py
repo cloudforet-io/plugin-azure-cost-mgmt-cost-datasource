@@ -71,3 +71,4 @@ class PluginMetadata(Model):
     exclude_license_cost = BooleanType(default=False)
     cost_info = DictType(StringType, default={})
     data_info = DictType(ModelType(MetadataDataInfo), default={})
+    additional_info = ListType(StringType, default=[])
