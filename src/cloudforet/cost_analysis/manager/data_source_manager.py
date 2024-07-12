@@ -14,12 +14,13 @@ class DataSourceManager(BaseManager):
     def init_response(options):
         plugin_metadata = PluginMetadata()
 
-        plugin_metadata.additional_info = [
-            "Unit Price",
-            "Resource Id",
-            "Subscription Id",
-            "Charge Type",
-        ]
+        plugin_metadata.additional_info = {
+            "Subscription Name": {"name": "Subscription Name", "visible": True},
+            "Unit Price": {"name": "Unit Price", "visible": False},
+            "Resource Id": {"name": "Resource Id", "visible": False},
+            "Subscription Id": {"name": "Subscription Id", "visible": False},
+            "Charge Type": {"name": "Charge Type", "visible": False},
+        }
 
         if currency := options.get("currency"):
             plugin_metadata.currency = currency
