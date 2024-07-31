@@ -29,6 +29,7 @@ BENEFIT_FILTER = {
 }
 BENEFIT_GROUPING = [
     {"type": "Dimension", "name": "CustomerTenantId"},
+    {"type": "Dimension", "name": "CustomerName"},
     {"type": "Dimension", "name": "PricingModel"},
     {"type": "Dimension", "name": "Frequency"},
     {"type": "Dimension", "name": "BenefitId"},
