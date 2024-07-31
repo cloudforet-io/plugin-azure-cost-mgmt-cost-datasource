@@ -114,6 +114,7 @@ class CostManager(BaseManager):
     def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
         additional_info = {
             "Tenant Id": result.get("CustomerTenantId"),
+            "Customer Name": result.get("CustomerName"),
             "Pricing Model": result.get("PricingModel"),
             "Frequency": result.get("BillingFrequency"),
             "Benefit Id": result.get("BenefitId"),
