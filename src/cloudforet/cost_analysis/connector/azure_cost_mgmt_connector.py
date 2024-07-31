@@ -1,5 +1,8 @@
 import logging
 import os
+import time
+from datetime import datetime
+
 import requests
 import pandas as pd
 import numpy as np
@@ -8,16 +11,18 @@ from io import StringIO
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
 from azure.mgmt.costmanagement import CostManagementClient
+from azure.mgmt.consumption import ConsumptionManagementClient
 from azure.core.exceptions import ResourceNotFoundError
 from spaceone.core.connector import BaseConnector
 
 from cloudforet.cost_analysis.error.cost import *
+from cloudforet.cost_analysis.conf.cost_conf import *
 
 __all__ = ["AzureCostMgmtConnector"]
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("spaceone")
 
-_PAGE_SIZE = 6000
+_PAGE_SIZE = 5000
 
 
 class AzureCostMgmtConnector(BaseConnector):
@@ -26,7 +31,25 @@ class AzureCostMgmtConnector(BaseConnector):
         self.billing_client = None
         self.cost_mgmt_client = None
         self.billing_account_id = None
+        self._billing_profile_id = None
+        self._invoice_section_id = None
         self.next_link = None
+
+    @property
+    def billing_profile_id(self):
+        return self._billing_profile_id
+
+    @billing_profile_id.setter
+    def billing_profile_id(self, billing_profile_id: str):
+        self._billing_profile_id = billing_profile_id
+
+    @property
+    def invoice_section_id(self):
+        return self._invoice_section_id
+
+    @invoice_section_id.setter
+    def invoice_section_id(self, invoice_section_id: str):
+        self._invoice_section_id = invoice_section_id
 
     def create_session(self, options: dict, secret_data: dict, schema: str) -> None:
         self._check_secret_data(secret_data)
@@ -47,6 +70,39 @@ class AzureCostMgmtConnector(BaseConnector):
         self.cost_mgmt_client = CostManagementClient(
             credential=credential, subscription_id=subscription_id
         )
+        self.consumption_client = ConsumptionManagementClient(
+            credential=credential, subscription_id=subscription_id
+        )
+
+    def check_reservation_transaction(self) -> bool:
+        if not self.billing_account_id:
+            _LOGGER.debug("[check_reservation_transaction] billing_account_id is None")
+            return False
+        elif not self.billing_profile_id:
+            _LOGGER.debug("[check_reservation_transaction] billing_profile_id is None")
+            return False
+        elif not self.invoice_section_id:
+            _LOGGER.debug("[check_reservation_transaction] invoice_section_id is None")
+            return False
+        return True
+
+    def list_reservation_transactions_by_billing_profile_id(
+        self, query_filter: str
+    ) -> list:
+        transactions = []
+        try:
+            transactions = self.consumption_client.reservation_transactions.list_by_billing_profile(
+                billing_account_id=self.billing_account_id,
+                billing_profile_id=self.billing_profile_id,
+                filter=query_filter,
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"[list_reservation_transactions_by_billing_profile_id] error message: {e}",
+                exc_info=True,
+            )
+
+        return transactions
 
     def list_billing_accounts(self) -> list:
         billing_accounts_info = []
@@ -64,6 +120,50 @@ class AzureCostMgmtConnector(BaseConnector):
             )
 
         return billing_accounts_info
+
+    def query_usage_http(
+        self, secret_data: dict, start: datetime, end: datetime, options=None
+    ):
+        try:
+            billing_account_id = secret_data["billing_account_id"]
+            api_version = "2023-11-01"
+            self.next_link = f"https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
+
+            parameters = {
+                "type": TYPE,
+                "timeframe": TIMEFRAME,
+                "timePeriod": {"from": start.isoformat(), "to": end.isoformat()},
+                "dataset": {
+                    "granularity": GRANULARITY,
+                    "aggregation": AGGREGATION,
+                    "grouping": BENEFIT_GROUPING,
+                    "filter": BENEFIT_FILTER,
+                },
+            }
+
+            while self.next_link:
+                url = self.next_link
+                headers = self._make_request_headers()
+
+                _LOGGER.debug(f"[query_usage] url:{url}, parameters: {parameters}")
+                response = requests.post(url=url, headers=headers, json=parameters)
+                response_json = response.json()
+
+                if response_json.get("error"):
+                    response_json = self._retry_request(
+                        response=response,
+                        url=url,
+                        headers=headers,
+                        json=parameters,
+                        retry_count=RETRY_COUNT,
+                        method="post",
+                    )
+
+                self.next_link = response_json.get("properties").get("nextLink", None)
+                yield response_json
+        except Exception as e:
+            _LOGGER.error(f"[ERROR] query_usage_http {e}", exc_info=True)
+            raise ERROR_UNKNOWN(message=f"[ERROR] get_usd_cost_and_tag_http {e}")
 
     def get_billing_account(self) -> dict:
         billing_account_name = self.billing_account_id
@@ -164,6 +264,37 @@ class AzureCostMgmtConnector(BaseConnector):
                 cloud_svc_dict[key] = value_list
 
         return cloud_svc_dict
+
+    def _retry_request(self, response, url, headers, json, retry_count, method="post"):
+        try:
+            print(f"{datetime.utcnow()}[INFO] retry_request {response.headers}")
+            if retry_count == 0:
+                raise ERROR_UNKNOWN(
+                    message=f"[ERROR] retry_request failed {response.json()}"
+                )
+
+            _sleep_time = self._get_sleep_time(response.headers)
+            time.sleep(_sleep_time)
+
+            if method == "post":
+                response = requests.post(url=url, headers=headers, json=json)
+            else:
+                response = requests.get(url=url, headers=headers, json=json)
+            response_json = response.json()
+
+            if response_json.get("error"):
+                response_json = self._retry_request(
+                    response=response,
+                    url=url,
+                    headers=headers,
+                    json=json,
+                    retry_count=retry_count - 1,
+                    method=method,
+                )
+            return response_json
+        except Exception as e:
+            _LOGGER.error(f"[ERROR] retry_request failed {e}")
+            raise e
 
     @staticmethod
     def _download_cost_data(blob: dict) -> str:

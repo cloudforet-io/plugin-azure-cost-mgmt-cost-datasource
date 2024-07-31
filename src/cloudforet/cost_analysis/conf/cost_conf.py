@@ -9,6 +9,36 @@ AGGREGATION = {
     "UsageQuantity": {"name": "UsageQuantity", "function": "Sum"},
 }
 
+BENEFIT_FILTER = {
+    "and": [
+        {
+            "dimensions": {
+                "name": "ChargeType",
+                "operator": "In",
+                "values": ["Purchase"],
+            }
+        },
+        {
+            "dimensions": {
+                "name": "PricingModel",
+                "operator": "In",
+                "values": ["Reservation", "SavingsPlan"],
+            }
+        },
+    ]
+}
+BENEFIT_GROUPING = [
+    {"type": "Dimension", "name": "CustomerTenantId"},
+    {"type": "Dimension", "name": "PricingModel"},
+    {"type": "Dimension", "name": "Frequency"},
+    {"type": "Dimension", "name": "BenefitId"},
+    {"type": "Dimension", "name": "BenefitName"},
+    {"type": "Dimension", "name": "ReservationId"},
+    {"type": "Dimension", "name": "ReservationName"},
+    {"type": "Dimension", "name": "ChargeType"},
+    {"type": "Dimension", "name": "MeterCategory"},
+]
+
 GROUPING_EA_AGREEMENT_OPTION = [
     {"type": "Dimension", "name": "DepartmentName"},
     {"type": "Dimension", "name": "EnrollmentAccountName"},
