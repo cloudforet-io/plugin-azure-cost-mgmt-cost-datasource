@@ -96,6 +96,19 @@ class JobManager(BaseManager):
                         synced_accounts = self._extend_synced_accounts(
                             synced_accounts, first_sync_tenants
                         )
+                # Benefit Job Task
+                if options.get("cost_metric") == "AmortizedCost":
+                    tasks.append(
+                        {
+                            "task_options": {
+                                "start": start_month,
+                                "account_agreement_type": billing_account_agreement_type,
+                                "collect_scope": "billing_account_id",
+                                "is_benefit_job": True,
+                            }
+                        }
+                    )
+
             else:
                 tasks = [
                     {
