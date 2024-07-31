@@ -2,6 +2,7 @@ import calendar
 import logging
 import json
 import time
+import pandas as pd
 from typing import Union
 from datetime import datetime, timezone
 
@@ -13,7 +14,7 @@ from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
 )
 from cloudforet.cost_analysis.conf.cost_conf import *
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("spaceone")
 
 
 class CostManager(BaseManager):
@@ -24,8 +25,12 @@ class CostManager(BaseManager):
         )
 
     def get_linked_accounts(
-        self, options: dict, secret_data: dict, domain_id: str, schema
-    ) -> list:
+        self,
+        options: dict,
+        secret_data: dict,
+        schema: str,
+        domain_id: str,
+    ) -> dict:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         billing_account_info = self.azure_cm_connector.get_billing_account()
         agreement_type = billing_account_info.get("agreement_type")
@@ -46,12 +51,102 @@ class CostManager(BaseManager):
         else:
             pass
         _LOGGER.debug(
-            f"[get_linked_accounts] total accounts count: {len(accounts_info)}"
+            f"[get_linked_accounts] total accounts count: {len(accounts_info)}, domain_id: {domain_id}"
         )
-        return accounts_info
+        return {"results": accounts_info}
+
+    def get_benefit_data(
+        self,
+        options: dict,
+        secret_data: dict,
+        schema: str,
+        task_options: dict,
+        domain_id: str,
+    ):
+        self.azure_cm_connector.create_session(options, secret_data, schema)
+        start: datetime = self._get_first_date_of_month(task_options["start"])
+        end: datetime = datetime.utcnow()
+
+        monthly_time_period = self._make_monthly_time_period(start, end)
+
+        for time_period in monthly_time_period:
+            _start = time_period["start"]
+            _end = time_period["end"]
+            response_stream = self.azure_cm_connector.query_usage_http(
+                secret_data, _start, _end
+            )
+
+            for results in response_stream:
+                yield self._make_benefit_cost_data(
+                    results=results,
+                    end=_end,
+                    options=options,
+                )
+
+    def _make_benefit_cost_data(
+        self,
+        results: dict,
+        end: datetime,
+        options: dict,
+        tenant_id: str = None,
+        agreement_type: str = None,
+    ) -> list:
+        benefit_costs_data = []
+        try:
+            combined_results = self._combine_rows_and_columns_from_results(
+                results.get("properties").get("rows"),
+                results.get("properties").get("columns"),
+            )
+            for cb_result in combined_results:
+                billed_at = self._set_billed_date(cb_result.get("UsageDate", end))
+                if not billed_at:
+                    continue
+
+                data = self._make_benefit_cost_info(cb_result, billed_at)
+                benefit_costs_data.append(data)
+
+        except Exception as e:
+            _LOGGER.error(f"[_make_cost_data] make data error: {e}", exc_info=True)
+            raise e
+
+        return benefit_costs_data
+
+    def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
+        additional_info = {
+            "Tenant Id": result.get("CustomerTenantId"),
+            "Pricing Model": result.get("PricingModel"),
+            "Frequency": result.get("BillingFrequency"),
+            "Benefit Id": result.get("BenefitId"),
+            "Benefit Name": result.get("BenefitName"),
+            "Reservation Id": result.get("ReservationId"),
+            "Reservation Name": result.get("ReservationName"),
+            "Charge Type": result.get("ChargeType"),
+        }
+        usage_quantity = self._convert_str_to_float_format(
+            result.get("UsageQuantity", 0.0)
+        )
+        actual_cost = self._convert_str_to_float_format(result.get("Cost", 0.0))
+        data = {
+            "cost": 0,
+            "usage_quantity": usage_quantity,
+            "provider": "azure",
+            "product": result.get("MeterCategory"),
+            "tags": {},
+            "billed_date": billed_at,
+            "data": {
+                "Actual Cost": actual_cost,
+            },
+            "additional_info": additional_info,
+        }
+        return data
 
     def get_data(
-        self, options: dict, secret_data: dict, schema, task_options: dict
+        self,
+        options: dict,
+        secret_data: dict,
+        schema: str,
+        task_options: dict,
+        domain_id: str,
     ) -> list:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
@@ -74,7 +169,7 @@ class CostManager(BaseManager):
             )
             for idx, tenant_id in enumerate(tenant_ids):
                 _LOGGER.info(
-                    f"[get_data] #{idx + 1} {tenant_id} tenant start to collect data from {_start} to {_end}"
+                    f"[get_data] #{idx + 1} {tenant_id} tenant start to collect data from {_start} to {_end}, domain_id: {domain_id}"
                 )
                 scope = self._make_scope(
                     secret_data, task_options, collect_scope, tenant_id
@@ -93,9 +188,11 @@ class CostManager(BaseManager):
                         options=options,
                         agreement_type=agreement_type,
                     )
+
                 _LOGGER.info(
-                    f"[get_data] #{idx + 1} {tenant_id} tenant collect is done"
+                    f"[get_data] #{idx + 1} {tenant_id} tenant collect is done, domain_id: {domain_id}"
                 )
+
             end_time = time.time()
             _LOGGER.info(
                 f"[get_data] all collect is done in {int(end_time - start_time)} seconds"
@@ -138,6 +235,79 @@ class CostManager(BaseManager):
             raise e
 
         return costs_data
+
+    def _make_transaction_cost_data(self, tenant_id: str, end: datetime) -> list:
+        transaction_cost_data = []
+
+        event_start_date = end.replace(day=1).strftime("%Y-%m-%d")
+        event_end_date = end.strftime("%Y-%m-%d")
+        query_filter = f"properties/eventDate ge {event_start_date} AND properties/eventDate le {event_end_date}"
+        invoice_section_id = self.azure_cm_connector.invoice_section_id
+
+        try:
+            for (
+                reservation_transaction
+            ) in self.azure_cm_connector.list_reservation_transactions_by_billing_profile_id(
+                query_filter
+            ):
+
+                if (
+                    reservation_transaction.invoice_section_id.split("/")[-1]
+                    == invoice_section_id
+                ):
+                    reservation_transaction_info = (
+                        self.azure_cm_connector.convert_nested_dictionary(
+                            reservation_transaction
+                        )
+                    )
+                    billed_date = self._set_billed_date(
+                        reservation_transaction_info.get("event_date", end)
+                    )
+                    actual_cost = reservation_transaction_info["amount"]
+                    reservation_order_id = reservation_transaction_info.get(
+                        "reservation_order_id"
+                    )
+                    reservation_name = reservation_transaction_info.get(
+                        "reservation_order_name"
+                    )
+                    additional_info = {
+                        "Tenant Id": tenant_id,
+                        "Customer Name": reservation_transaction_info.get(
+                            "invoice_section_name"
+                        ),
+                        "Usage Type": "Reservation",
+                        "charge_type": reservation_transaction_info.get("event_type"),
+                        "Product Name": reservation_transaction_info.get("description"),
+                        "Price Model": "Reservation",
+                        "Benefit Id": f"/providers/Microsoft.Capacity/reservationOrders/{reservation_order_id}",
+                        "Benefit Name": reservation_name,
+                        "Reservation Id": reservation_order_id,
+                        "Reservation Name": reservation_name,
+                        "Frequency": reservation_transaction_info.get(
+                            "billing_frequency"
+                        ),
+                        "Reservation SKU Name": reservation_transaction_info.get(
+                            "arm_sku_name"
+                        ),
+                    }
+                    cost_info = {
+                        "cost": 0,
+                        "quantity": reservation_transaction_info.get("quantity", 0),
+                        "billed_date": billed_date,
+                        "region": reservation_transaction_info.get("region"),
+                        "data": {"Actual Cost": actual_cost},
+                        "additional_info": additional_info,
+                    }
+                    transaction_cost_data.append(cost_info)
+            _LOGGER.debug(
+                f"[_make_transaction_cost_data] transaction_cost_data: {len(transaction_cost_data)}"
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"[_make_transaction_cost_data] make transaction cost data error: {e}",
+                exc_info=True,
+            )
+        return transaction_cost_data
 
     def _make_data_info(
         self,
@@ -210,6 +380,9 @@ class CostManager(BaseManager):
 
         if result.get("reservationname") != "" and result.get("reservationname"):
             additional_info["Reservation Name"] = result["reservationname"]
+
+        if result.get("reservationid") != "" and result.get("reservationid"):
+            additional_info["Reservation Id"] = result["reservationid"]
 
         if result.get("benefitname") != "" and result.get("benefitname"):
             benefit_name = result["benefitname"]
@@ -302,14 +475,23 @@ class CostManager(BaseManager):
     def _get_aggregate_data(self, result: dict, options: dict) -> dict:
         aggregate_data = {}
 
+        if options.get("pay_as_you_go", False):
+            return aggregate_data
+
+        cost_in_billing_currency = self._convert_str_to_float_format(
+            result.get("costinbillingcurrency", 0.0)
+        )
+
         if options.get("cost_metric") == "AmortizedCost":
-            aggregate_data["Amortized Cost"] = self._convert_str_to_float_format(
-                result.get("amortizedcostinbillingcurrency", 0.0)
-            )
+            aggregate_data["Amortized Cost"] = cost_in_billing_currency
+
+            if result.get("reservationname") != "" and result.get("reservationname"):
+                aggregate_data["Actual Cost"] = 0
+            else:
+                aggregate_data["Actual Cost"] = cost_in_billing_currency
+
         else:
-            aggregate_data["Actual Cost"] = self._convert_str_to_float_format(
-                result.get("costinbillingcurrency", 0.0)
-            )
+            aggregate_data["Actual Cost"] = cost_in_billing_currency
 
         return aggregate_data
 
@@ -532,3 +714,8 @@ class CostManager(BaseManager):
             additional_info["Usage Type Details"] = usage_type
 
         return additional_info
+
+    @staticmethod
+    def _combine_rows_and_columns_from_results(rows: list, columns: list):
+        _columns = [column.get("name") for column in columns]
+        return pd.DataFrame(data=rows, columns=_columns).to_dict(orient="records")

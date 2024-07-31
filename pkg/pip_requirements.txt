@@ -4,3 +4,4 @@ azure-mgmt-costmanagement
 schematics
 pandas
 python-dateutil
+azure-mgmt-consumption

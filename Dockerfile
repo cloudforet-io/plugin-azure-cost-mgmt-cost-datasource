@@ -14,7 +14,10 @@ RUN pip install --upgrade pip && \
     pip install --upgrade -r ${PKG_DIR}/pip_requirements.txt
 
 ARG CACHEBUST=1
-RUN pip install --upgrade spaceone-api
+RUN pip install --upgrade spaceone-api && \
+    pip install --upgrade --pre spaceone-cost-analysis==2.0.dev147
+
+
 
 COPY src ${SRC_DIR}
 WORKDIR ${SRC_DIR}
@@ -24,4 +27,4 @@ RUN python3 setup.py install && \
 EXPOSE ${SPACEONE_PORT}
 
 ENTRYPOINT ["spaceone"]
-CMD ["run", "grpc-server", "cloudforet.cost_analysis"]
+CMD ["run", "plugin-server", "cloudforet.cost_analysis"]

@@ -6,14 +6,10 @@ from typing import Tuple, Union
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core.manager import BaseManager
-from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
-    AzureCostMgmtConnector,
-)
-from cloudforet.cost_analysis.model.job_model import Tasks
 from cloudforet.cost_analysis.conf.cost_conf import SECRET_TYPE_DEFAULT
 from cloudforet.cost_analysis.error.cost import *
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("spaceone")
 
 _TASK_LIST_SIZE = 4
 
@@ -21,9 +17,7 @@ _TASK_LIST_SIZE = 4
 class JobManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.azure_cm_connector: AzureCostMgmtConnector = self.locator.get_connector(
-            "AzureCostMgmtConnector"
-        )
+        self.azure_cm_connector = self.locator.get_connector("AzureCostMgmtConnector")
 
     def get_tasks(
         self,
@@ -34,7 +28,7 @@ class JobManager(BaseManager):
         start: str,
         last_synchronized_at: datetime,
         domain_id: str,
-    ):
+    ) -> dict:
         start_month = self._get_start_month(start, last_synchronized_at)
 
         self.azure_cm_connector.create_session(options, secret_data, schema)
@@ -102,6 +96,19 @@ class JobManager(BaseManager):
                         synced_accounts = self._extend_synced_accounts(
                             synced_accounts, first_sync_tenants
                         )
+                # Benefit Job Task
+                if options.get("cost_metric") == "AmortizedCost":
+                    tasks.append(
+                        {
+                            "task_options": {
+                                "start": start_month,
+                                "account_agreement_type": billing_account_agreement_type,
+                                "collect_scope": "billing_account_id",
+                                "is_benefit_job": True,
+                            }
+                        }
+                    )
+
             else:
                 tasks = [
                     {
@@ -134,11 +141,11 @@ class JobManager(BaseManager):
         else:
             raise ERROR_INVALID_SECRET_TYPE(secret_type=options.get("secret_type"))
 
-        tasks = Tasks(
-            {"tasks": tasks, "changed": changed, "synced_accounts": synced_accounts}
-        )
-        tasks.validate()
-        return tasks.to_primitive()
+        tasks = {"tasks": tasks, "changed": changed, "synced_accounts": synced_accounts}
+
+        print(tasks)
+
+        return tasks
 
     def _get_tenants_from_billing_account(self):
         tenants = []
