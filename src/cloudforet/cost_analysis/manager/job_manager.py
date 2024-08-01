@@ -64,6 +64,7 @@ class JobManager(BaseManager):
                                 "account_agreement_type": billing_account_agreement_type,
                                 "collect_scope": "customer_tenant_id",
                                 "customer_tenants": divided_customer_tenant_info,
+                                "tenant_id": secret_data["tenant_id"],
                             }
                         }
                     )
@@ -81,6 +82,7 @@ class JobManager(BaseManager):
                                 "account_agreement_type": billing_account_agreement_type,
                                 "collect_scope": "customer_tenant_id",
                                 "customer_tenants": first_sync_tenants,
+                                "tenant_id": secret_data["tenant_id"],
                                 "is_sync": False,
                             }
                         }
@@ -104,6 +106,7 @@ class JobManager(BaseManager):
                                 "start": start_month,
                                 "account_agreement_type": billing_account_agreement_type,
                                 "collect_scope": "billing_account_id",
+                                "tenant_id": secret_data["tenant_id"],
                                 "is_benefit_job": True,
                             }
                         }
@@ -142,9 +145,6 @@ class JobManager(BaseManager):
             raise ERROR_INVALID_SECRET_TYPE(secret_type=options.get("secret_type"))
 
         tasks = {"tasks": tasks, "changed": changed, "synced_accounts": synced_accounts}
-
-        print(tasks)
-
         return tasks
 
     def _get_tenants_from_billing_account(self):
