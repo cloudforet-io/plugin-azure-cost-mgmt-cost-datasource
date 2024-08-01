@@ -409,6 +409,9 @@ class CostManager(BaseManager):
             ):
                 result["metercategory"] = result.get("metercategory")
 
+        if result.get("meterid") != "" and result.get("meterid"):
+            additional_info["Meter Id"] = result["meterid"]
+
         if result.get("customername") is None:
             if result.get("invoicesectionname") != "" and result.get(
                 "invoicesectionname"

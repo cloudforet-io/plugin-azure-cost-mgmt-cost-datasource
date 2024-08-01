@@ -156,7 +156,7 @@ def cost_get_data(params: dict) -> Generator[dict, None, None]:
 
     params["schema"] = params.pop("schema_name", None)
     params["secret_data"] = __get_secret_data_with_tenant_id(
-        secret_data, task_options.get("tenant_id")
+        secret_data, task_options.get("billing_tenant_id")
     )
 
     if options.get("cost_metric") == "AmortizedCost" and task_options.get(
@@ -187,7 +187,7 @@ def __get_secret_data_with_tenant_id(secret_data: dict, tenant_id: str = None) -
         return secrets[0]
 
     for _secret_data in secrets:
-        if _secret_data["billing_tenant_id"] == tenant_id:
+        if _secret_data["tenant_id"] == tenant_id:
             secret_data = _secret_data
 
     return secret_data
