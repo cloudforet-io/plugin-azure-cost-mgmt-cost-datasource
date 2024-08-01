@@ -64,7 +64,7 @@ class JobManager(BaseManager):
                                 "account_agreement_type": billing_account_agreement_type,
                                 "collect_scope": "customer_tenant_id",
                                 "customer_tenants": divided_customer_tenant_info,
-                                "tenant_id": secret_data["tenant_id"],
+                                "billing_tenant_id": secret_data["tenant_id"],
                             }
                         }
                     )
@@ -82,7 +82,7 @@ class JobManager(BaseManager):
                                 "account_agreement_type": billing_account_agreement_type,
                                 "collect_scope": "customer_tenant_id",
                                 "customer_tenants": first_sync_tenants,
-                                "tenant_id": secret_data["tenant_id"],
+                                "billing_tenant_id": secret_data["tenant_id"],
                                 "is_sync": False,
                             }
                         }
@@ -98,20 +98,6 @@ class JobManager(BaseManager):
                         synced_accounts = self._extend_synced_accounts(
                             synced_accounts, first_sync_tenants
                         )
-                # Benefit Job Task
-                if options.get("cost_metric") == "AmortizedCost":
-                    tasks.append(
-                        {
-                            "task_options": {
-                                "start": start_month,
-                                "account_agreement_type": billing_account_agreement_type,
-                                "collect_scope": "billing_account_id",
-                                "tenant_id": secret_data["tenant_id"],
-                                "is_benefit_job": True,
-                            }
-                        }
-                    )
-
             else:
                 tasks = [
                     {
@@ -125,6 +111,20 @@ class JobManager(BaseManager):
                 changed = [{"start": start_month}]
                 synced_accounts = []
 
+            # Benefit Job Task
+            if options.get("cost_metric") == "AmortizedCost":
+                tasks.append(
+                    {
+                        "task_options": {
+                            "start": start_month,
+                            "account_agreement_type": billing_account_agreement_type,
+                            "collect_scope": "billing_account_id",
+                            "billing_tenant_id": secret_data["tenant_id"],
+                            "is_benefit_job": True,
+                        }
+                    }
+                )
+
         elif secret_type == "USE_SERVICE_ACCOUNT_SECRET":
             subscription_id = secret_data.get("subscription_id", "")
             tenant_id = secret_data.get("tenant_id")
@@ -134,7 +134,7 @@ class JobManager(BaseManager):
                         "collect_scope": "subscription_id",
                         "start": start_month,
                         "subscription_id": subscription_id,
-                        "tenant_id": tenant_id,
+                        "billing_tenant_id": tenant_id,
                     }
                 }
             ]
