@@ -227,6 +227,15 @@ class AzureCostMgmtConnector(BaseConnector):
             billing_account_name=billing_account_name
         )
 
+    def get_retail_price(self, meter_id: str):
+        url = f"https://prices.azure.com/api/retail/prices?$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
+        try:
+            response = requests.get(url=url)
+            return response.json()
+        except Exception as e:
+            _LOGGER.error(f"[ERROR] get_retail_price {e}")
+            raise ERROR_UNKNOWN(message=f"[ERROR] get_retail_price failed {e}")
+
     def _make_request_headers(self, client_type=None):
         access_token = self._get_access_token()
         headers = {
