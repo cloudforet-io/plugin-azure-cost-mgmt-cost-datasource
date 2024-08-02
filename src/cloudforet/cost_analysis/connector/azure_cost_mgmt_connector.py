@@ -1,18 +1,19 @@
 import logging
 import os
 import time
-from datetime import datetime
-
 import requests
 import pandas as pd
 import numpy as np
+from datetime import datetime
+from functools import wraps
 from io import StringIO
+from typing import get_type_hints, Union, Any
 
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.consumption import ConsumptionManagementClient
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
 from spaceone.core.connector import BaseConnector
 
 from cloudforet.cost_analysis.error.cost import *
@@ -23,6 +24,48 @@ __all__ = ["AzureCostMgmtConnector"]
 _LOGGER = logging.getLogger("spaceone")
 
 _PAGE_SIZE = 5000
+
+
+def azure_exception_handler(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> Union[dict, list]:
+        return_type = get_type_hints(func).get("return")
+        try:
+            return func(*args, **kwargs)
+        except ResourceNotFoundError as error:
+            _print_error_log(error)
+            return _get_empty_value(return_type)
+        except HttpResponseError as error:
+            if error.status_code in ["404", "412"]:
+                _print_error_log(error)
+            else:
+                _print_error_log(error)
+            return _get_empty_value(return_type)
+        except Exception as e:
+            _print_error_log(ERROR_UNKNOWN(message=str(e)))
+            raise e
+
+    return wrapper
+
+
+def _get_empty_value(return_type: object) -> Any:
+    return_type_name = getattr(return_type, "__name__")
+    empty_values = {
+        "int": 0,
+        "float": 0.0,
+        "str": "",
+        "bool": False,
+        "list": [],
+        "dict": {},
+        "set": set(),
+        "tuple": (),
+    }
+
+    return empty_values.get(return_type_name, None)
+
+
+def _print_error_log(error):
+    _LOGGER.error(f"(Error) => {error.message} {error}", exc_info=True)
 
 
 class AzureCostMgmtConnector(BaseConnector):
@@ -173,32 +216,24 @@ class AzureCostMgmtConnector(BaseConnector):
         billing_account_info = self.convert_nested_dictionary(billing_account_info)
         return billing_account_info
 
+    @azure_exception_handler
     def begin_create_operation(self, scope: str, parameters: dict) -> list:
-        try:
-            content_type = "application/json"
-            response = self.cost_mgmt_client.generate_cost_details_report.begin_create_operation(
+        content_type = "application/json"
+        response = (
+            self.cost_mgmt_client.generate_cost_details_report.begin_create_operation(
                 scope=scope, parameters=parameters, content_type=content_type
             )
-            result = self.convert_nested_dictionary(response.result())
-            _LOGGER.info(
-                f"[begin_create_operation] result : {result} status : {response.status()}"
-            )
+        )
+        result = self.convert_nested_dictionary(response.result())
+        _LOGGER.info(
+            f"[begin_create_operation] result : {result} status : {response.status()}"
+        )
 
-            blobs = result.get("blobs", []) or []
-            _LOGGER.debug(
-                f"[begin_create_operation] csv_file_link: {blobs} / parameters: {parameters}"
-            )
-            return blobs
-        except ResourceNotFoundError as e:
-            _LOGGER.error(
-                f"[begin_create_operation] Cost data is not ready: {e} / parameters: {parameters}"
-            )
-            return []
-        except Exception as e:
-            _LOGGER.error(
-                f"[begin_create_operation] error message: {e} / parameters: {parameters}"
-            )
-            raise ERROR_UNKNOWN(message=f"[ERROR] begin_create_operation failed")
+        blobs = result.get("blobs", []) or []
+        _LOGGER.debug(
+            f"[begin_create_operation] csv_file_link: {blobs} / parameters: {parameters}"
+        )
+        return blobs
 
     def get_cost_data(self, blobs: list, options: dict) -> list:
         _LOGGER.debug(f"[get_cost_data] options: {options}")
