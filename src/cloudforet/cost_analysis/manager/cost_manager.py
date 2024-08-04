@@ -512,16 +512,23 @@ class CostManager(BaseManager):
         saved_cost = 0
         currency = result.get("billingcurrency", "USD")
         meter_id = result.get("meterid")
+        product_id = result.get("productid")
         quantity = self._convert_str_to_float_format(result.get("quantity", 0.0))
 
-        if self.retail_price_map.get(meter_id):
-            unit_price = self.retail_price_map[meter_id]
-        else:
-            unit_price = self._get_unit_price_from_meter_id(meter_id)
-            self.retail_price_map[meter_id] = unit_price
+        if not self.retail_price_map.get(f"{meter_id}:{product_id}"):
+            unit_price = self._get_unit_price_from_meter_id(meter_id, product_id)
+            self.retail_price_map[f"{meter_id}:{product_id}"] = unit_price
+
+        unit_price = self.retail_price_map[f"{meter_id}:{product_id}"]
 
         if currency != "USD":
-            exchange_rate = result.get("exchangeratepricingtobilling", 1.0) or 1.0
+            cost_in_billing_currency = self._convert_str_to_float_format(
+                result.get("costinbillingcurrency", 0.0)
+            )
+            cost_in_pricing_currency = self._convert_str_to_float_format(
+                result.get("costinpricingcurrency", 0.0)
+            )
+            exchange_rate = cost_in_billing_currency / cost_in_pricing_currency
 
         retail_cost = exchange_rate * quantity * unit_price
         if retail_cost:
@@ -529,15 +536,16 @@ class CostManager(BaseManager):
 
         return saved_cost
 
-    def _get_unit_price_from_meter_id(self, meter_id: str) -> float:
+    def _get_unit_price_from_meter_id(self, meter_id: str, product_id: str) -> float:
         unit_price = 0.0
         try:
             response = self.azure_cm_connector.get_retail_price(meter_id)
             items = response.get("Items", [])
 
             for item in items:
-                if item.get("meterId") == meter_id:
-                    unit_price = item.get("retailPrice", 0.0)
+                sku_id = item.get("skuId").replace("/", "")
+                if item.get("meterId") == meter_id and sku_id == product_id:
+                    unit_price = item.get("retailPrice", 1.0)
                     break
 
         except Exception as e:
