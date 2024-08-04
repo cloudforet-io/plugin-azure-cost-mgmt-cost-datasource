@@ -521,7 +521,7 @@ class CostManager(BaseManager):
 
         unit_price = self.retail_price_map[f"{meter_id}:{product_id}"]
 
-        if currency != "USD":
+        if currency != "USD" and quantity > 0:
             cost_in_billing_currency = self._convert_str_to_float_format(
                 result.get("costinbillingcurrency", 0.0)
             )
