@@ -311,7 +311,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
     def _retry_request(self, response, url, headers, json, retry_count, method="post"):
         try:
-            print(f"{datetime.utcnow()}[INFO] retry_request {response.headers}")
+            _LOGGER.error(f"{datetime.utcnow()}[INFO] retry_request {response.headers}")
             if retry_count == 0:
                 raise ERROR_UNKNOWN(
                     message=f"[ERROR] retry_request failed {response.json()}"
@@ -353,7 +353,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
     @staticmethod
     def _get_sleep_time(response_headers):
-        sleep_time = 0
+        sleep_time = 30
         for key, value in response_headers.items():
             if "retry" in key.lower():
                 if isinstance(value, str) is False:
