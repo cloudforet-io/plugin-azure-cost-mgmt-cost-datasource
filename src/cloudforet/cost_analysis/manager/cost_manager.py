@@ -528,7 +528,11 @@ class CostManager(BaseManager):
             cost_in_pricing_currency = self._convert_str_to_float_format(
                 result.get("costinpricingcurrency", 0.0)
             )
-            exchange_rate = cost_in_billing_currency / cost_in_pricing_currency
+
+            if cost_in_pricing_currency == 0 or cost_in_billing_currency == 0:
+                exchange_rate = 0
+            else:
+                exchange_rate = cost_in_billing_currency / cost_in_pricing_currency
 
         retail_cost = exchange_rate * quantity * unit_price
         if retail_cost:
