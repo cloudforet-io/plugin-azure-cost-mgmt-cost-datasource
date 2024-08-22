@@ -206,7 +206,7 @@ class AzureCostMgmtConnector(BaseConnector):
                 yield response_json
         except Exception as e:
             _LOGGER.error(f"[ERROR] query_usage_http {e}", exc_info=True)
-            raise ERROR_UNKNOWN(message=f"[ERROR] get_usd_cost_and_tag_http {e}")
+            raise ERROR_UNKNOWN(message=f"[ERROR] query_usage_http {e}")
 
     def get_billing_account(self) -> dict:
         billing_account_name = self.billing_account_id

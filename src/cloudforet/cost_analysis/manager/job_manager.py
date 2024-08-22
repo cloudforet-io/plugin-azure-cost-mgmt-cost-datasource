@@ -43,61 +43,96 @@ class JobManager(BaseManager):
                 changed = []
                 synced_accounts = []
 
-                # divide customer tenants for each task
-                customer_tenants, first_sync_tenants = self._get_customer_tenants(
-                    secret_data, linked_accounts
-                )
+                # Only for MicrosoftPartnerAgreement
+                if options.get("collect_scope") == "billing_account_id":
+                    start = datetime.strptime(start_month, "%Y-%m")
+                    end = datetime.utcnow()
 
-                if len(customer_tenants) == 0 and len(first_sync_tenants) > 0:
-                    customer_tenants.extend(first_sync_tenants)
-                    first_sync_tenants = []
+                    month_range = relativedelta(end, start).months
+                    month_range_step = math.ceil((month_range + 1) / _TASK_LIST_SIZE)
 
-                divided_customer_tenants = self._get_divided_customer_tenants(
-                    customer_tenants
-                )
-
-                for divided_customer_tenant_info in divided_customer_tenants:
-                    tasks.append(
-                        {
-                            "task_options": {
-                                "start": start_month,
-                                "account_agreement_type": billing_account_agreement_type,
-                                "collect_scope": "customer_tenant_id",
-                                "customer_tenants": divided_customer_tenant_info,
-                                "billing_tenant_id": secret_data["tenant_id"],
-                            }
-                        }
-                    )
-                    if linked_accounts:
-                        synced_accounts = self._extend_synced_accounts(
-                            synced_accounts, divided_customer_tenant_info
+                    for month in range(
+                        0,
+                        month_range + 1,
+                        math.ceil((month_range + 1) / _TASK_LIST_SIZE),
+                    ):
+                        task_start_month = datetime.strftime(
+                            start + relativedelta(months=month), "%Y-%m"
                         )
-                changed.append({"start": start_month})
-                if first_sync_tenants:
-                    first_sync_start_month = self._get_start_month(start=None)
-                    tasks.append(
-                        {
-                            "task_options": {
-                                "start": first_sync_start_month,
-                                "account_agreement_type": billing_account_agreement_type,
-                                "collect_scope": "customer_tenant_id",
-                                "customer_tenants": first_sync_tenants,
-                                "billing_tenant_id": secret_data["tenant_id"],
-                                "is_sync": False,
-                            }
-                        }
-                    )
-                    for tenant_id in first_sync_tenants:
-                        changed.append(
+                        task_end_month = datetime.strftime(
+                            start + relativedelta(months=month + month_range_step - 1),
+                            "%Y-%m",
+                        )
+                        tasks.append(
                             {
-                                "start": first_sync_start_month,
-                                "filter": {"additional_info.Tenant Id": tenant_id},
+                                "task_options": {
+                                    "start": task_start_month,
+                                    "end": task_end_month,
+                                    "account_agreement_type": billing_account_agreement_type,
+                                    "collect_scope": "billing_account_id",
+                                    "billing_tenant_id": secret_data["tenant_id"],
+                                }
                             }
                         )
                     if linked_accounts:
-                        synced_accounts = self._extend_synced_accounts(
-                            synced_accounts, first_sync_tenants
+                        synced_accounts = linked_accounts
+                    changed.append({"start": start_month})
+                else:
+                    # divide customer tenants for each task
+                    customer_tenants, first_sync_tenants = self._get_customer_tenants(
+                        secret_data, linked_accounts
+                    )
+
+                    if len(customer_tenants) == 0 and len(first_sync_tenants) > 0:
+                        customer_tenants.extend(first_sync_tenants)
+                        first_sync_tenants = []
+
+                    divided_customer_tenants = self._get_divided_customer_tenants(
+                        customer_tenants
+                    )
+
+                    for divided_customer_tenant_info in divided_customer_tenants:
+                        tasks.append(
+                            {
+                                "task_options": {
+                                    "start": start_month,
+                                    "account_agreement_type": billing_account_agreement_type,
+                                    "collect_scope": "customer_tenant_id",
+                                    "customer_tenants": divided_customer_tenant_info,
+                                    "billing_tenant_id": secret_data["tenant_id"],
+                                }
+                            }
                         )
+                        if linked_accounts:
+                            synced_accounts = self._extend_synced_accounts(
+                                synced_accounts, divided_customer_tenant_info
+                            )
+                    changed.append({"start": start_month})
+                    if first_sync_tenants:
+                        first_sync_start_month = self._get_start_month(start=None)
+                        tasks.append(
+                            {
+                                "task_options": {
+                                    "start": first_sync_start_month,
+                                    "account_agreement_type": billing_account_agreement_type,
+                                    "collect_scope": "customer_tenant_id",
+                                    "customer_tenants": first_sync_tenants,
+                                    "billing_tenant_id": secret_data["tenant_id"],
+                                    "is_sync": False,
+                                }
+                            }
+                        )
+                        for tenant_id in first_sync_tenants:
+                            changed.append(
+                                {
+                                    "start": first_sync_start_month,
+                                    "filter": {"additional_info.Tenant Id": tenant_id},
+                                }
+                            )
+                        if linked_accounts:
+                            synced_accounts = self._extend_synced_accounts(
+                                synced_accounts, first_sync_tenants
+                            )
             else:
                 tasks = [
                     {

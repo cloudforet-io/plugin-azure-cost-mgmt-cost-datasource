@@ -157,7 +157,7 @@ class CostManager(BaseManager):
         collect_scope: str = task_options["collect_scope"]
         tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
         start: datetime = self._get_first_date_of_month(task_options["start"])
-        end: datetime = datetime.utcnow()
+        end = self._get_end_date_from_task_options(task_options)
 
         monthly_time_period = self._make_monthly_time_period(start, end)
         for time_period in monthly_time_period:
@@ -454,6 +454,20 @@ class CostManager(BaseManager):
         if result.get("term") != "" and result.get("term"):
             additional_info["Term"] = result["term"]
 
+        if options.get("cost_metric") == "AmortizedCost":
+            if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:
+                meter_id = result.get("meterid")
+                product_id = result.get("productid")
+                if not self.retail_price_map.get(f"{meter_id}:{product_id}"):
+                    unit_price = self._get_unit_price_from_meter_id(
+                        meter_id, product_id
+                    )
+                    self.retail_price_map[f"{meter_id}:{product_id}"] = unit_price
+
+                additional_info["PayG Unit Price"] = self.retail_price_map[
+                    f"{meter_id}:{product_id}"
+                ]
+
         return additional_info
 
     def _get_cost_from_result_with_options(self, result: dict, options: dict) -> float:
@@ -498,9 +512,12 @@ class CostManager(BaseManager):
                 aggregate_data["Actual Cost"] = cost_in_billing_currency
 
             if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:
-                aggregate_data["Saved Cost"] = self._get_saved_cost(
-                    result, cost_in_billing_currency
-                )
+                if cost_in_billing_currency > 0:
+                    aggregate_data["Saved Cost"] = self._get_saved_cost(
+                        result, cost_in_billing_currency
+                    )
+                else:
+                    aggregate_data["Saved Cost"] = 0.0
 
         else:
             aggregate_data["Actual Cost"] = cost_in_billing_currency
@@ -578,6 +595,8 @@ class CostManager(BaseManager):
             tenant_ids.append(task_options["tenant_id"])
         elif collect_scope == "customer_tenant_id":
             tenant_ids.extend(task_options["customer_tenants"])
+        elif "billing_tenant_id" in task_options:
+            tenant_ids.append(task_options["billing_tenant_id"])
         else:
             tenant_ids.append("EA Agreement")
         return tenant_ids
@@ -780,3 +799,11 @@ class CostManager(BaseManager):
     def _combine_rows_and_columns_from_results(rows: list, columns: list):
         _columns = [column.get("name") for column in columns]
         return pd.DataFrame(data=rows, columns=_columns).to_dict(orient="records")
+
+    def _get_end_date_from_task_options(self, task_options: dict) -> datetime:
+        end_date = datetime.utcnow()
+
+        if "end" in task_options:
+            if end_date.strftime("%Y-%m") < task_options["end"]:
+                end_date = self._get_last_date_of_month(end_date.year, end_date.month)
+        return end_date
