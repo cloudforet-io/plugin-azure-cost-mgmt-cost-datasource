@@ -1,4 +1,4 @@
-FROM cloudforet/python-core:2.0
+FROM cloudforet/python-core:2.0.90
 
 ENV PYTHONUNBUFFERED 1
 ENV SPACEONE_PORT 50051
