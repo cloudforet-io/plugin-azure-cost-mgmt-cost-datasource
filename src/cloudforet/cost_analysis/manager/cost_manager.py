@@ -65,6 +65,7 @@ class CostManager(BaseManager):
         domain_id: str,
     ):
         self.azure_cm_connector.create_session(options, secret_data, schema)
+        account_agreement_type = task_options.get("agreement_type")
         start: datetime = self._get_first_date_of_month(task_options["start"])
         end: datetime = datetime.utcnow()
 
@@ -74,7 +75,7 @@ class CostManager(BaseManager):
             _start = time_period["start"]
             _end = time_period["end"]
             response_stream = self.azure_cm_connector.query_usage_http(
-                secret_data, _start, _end
+                secret_data, _start, _end, account_agreement_type
             )
 
             for results in response_stream:
@@ -452,7 +453,13 @@ class CostManager(BaseManager):
             additional_info["Meter Name"] = result["metername"]
 
         if result.get("term") != "" and result.get("term"):
-            additional_info["Term"] = result["term"]
+            term = result.get("term").trim().lower()
+            if term in ["1year"]:
+                term = 12
+            elif term in ["3year"]:
+                term = 36
+
+            additional_info["Term"] = term
 
         if options.get("cost_metric") == "AmortizedCost":
             if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:

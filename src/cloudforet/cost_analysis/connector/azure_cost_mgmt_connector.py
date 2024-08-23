@@ -165,7 +165,12 @@ class AzureCostMgmtConnector(BaseConnector):
         return billing_accounts_info
 
     def query_usage_http(
-        self, secret_data: dict, start: datetime, end: datetime, options=None
+        self,
+        secret_data: dict,
+        start: datetime,
+        end: datetime,
+        account_agreement_type: str,
+        options=None,
     ):
         try:
             billing_account_id = secret_data["billing_account_id"]
@@ -183,6 +188,12 @@ class AzureCostMgmtConnector(BaseConnector):
                     "filter": BENEFIT_FILTER,
                 },
             }
+            if account_agreement_type == "MicrosoftPartnerAgreement":
+                parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_MPA)
+            elif account_agreement_type == "EnterpriseAgreement":
+                parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_EA)
+            else:
+                parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_MCA)
 
             while self.next_link:
                 url = self.next_link
@@ -240,10 +251,12 @@ class AzureCostMgmtConnector(BaseConnector):
 
         total_cost_count = 0
         for blob in blobs:
-            cost_csv = self._download_cost_data(blob)
+            response = self._download_cost_data(blob)
 
             df_chunk = pd.read_csv(
-                StringIO(cost_csv), low_memory=False, chunksize=_PAGE_SIZE
+                StringIO(response.text),
+                low_memory=False,
+                chunksize=_PAGE_SIZE,
             )
 
             for df in df_chunk:
@@ -253,7 +266,7 @@ class AzureCostMgmtConnector(BaseConnector):
                 total_cost_count += len(costs_data)
                 yield costs_data
             del df_chunk
-            del cost_csv
+            del response
         _LOGGER.debug(f"[get_cost_data] total_cost_count: {total_cost_count}")
 
     def list_by_billing_account(self):
@@ -341,12 +354,13 @@ class AzureCostMgmtConnector(BaseConnector):
             raise e
 
     @staticmethod
-    def _download_cost_data(blob: dict) -> str:
+    def _download_cost_data(blob: dict) -> requests.Response:
         try:
             response = requests.get(blob.get("blob_link"))
             if response.status_code != 200:
                 raise ERROR_CONNECTOR_CALL_API(reason=f"{response.reason}")
-            return response.text
+            _LOGGER.debug(f"[_download_cost_data] response: {response}")
+            return response
         except Exception as e:
             _LOGGER.error(f"[_download_cost_data] download error: {e}", exc_info=True)
             raise e
