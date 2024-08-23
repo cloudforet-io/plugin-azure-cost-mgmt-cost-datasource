@@ -28,8 +28,6 @@ BENEFIT_FILTER = {
     ]
 }
 BENEFIT_GROUPING = [
-    {"type": "Dimension", "name": "CustomerTenantId"},
-    {"type": "Dimension", "name": "CustomerName"},
     {"type": "Dimension", "name": "PricingModel"},
     {"type": "Dimension", "name": "Frequency"},
     {"type": "Dimension", "name": "BenefitId"},
@@ -38,6 +36,20 @@ BENEFIT_GROUPING = [
     {"type": "Dimension", "name": "ReservationName"},
     {"type": "Dimension", "name": "ChargeType"},
     {"type": "Dimension", "name": "MeterCategory"},
+]
+
+BENEFIT_GROUPING_MPA = [
+    {"type": "Dimension", "name": "CustomerTenantId"},
+    {"type": "Dimension", "name": "CustomerName"},
+]
+
+BENEFIT_GROUPING_EA = [
+    {"type": "Dimension", "name": "DepartmentName"},
+    {"type": "Dimension", "name": "EnrollmentAccountName"},
+]
+
+BENEFIT_GROUPING_MCA = [
+    {"type": "Dimension", "name": "TenantId"},
 ]
 
 GROUPING_EA_AGREEMENT_OPTION = [
