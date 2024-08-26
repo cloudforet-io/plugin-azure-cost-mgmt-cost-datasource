@@ -131,7 +131,7 @@ class AzureCostMgmtConnector(BaseConnector):
         return True
 
     def list_reservation_transactions_by_billing_profile_id(
-            self, query_filter: str
+        self, query_filter: str
     ) -> list:
         transactions = []
         try:
@@ -166,12 +166,12 @@ class AzureCostMgmtConnector(BaseConnector):
         return billing_accounts_info
 
     def query_usage_http(
-            self,
-            secret_data: dict,
-            start: datetime,
-            end: datetime,
-            account_agreement_type: str,
-            options=None,
+        self,
+        secret_data: dict,
+        start: datetime,
+        end: datetime,
+        account_agreement_type: str,
+        options=None,
     ):
         try:
             billing_account_id = secret_data["billing_account_id"]
@@ -190,11 +190,17 @@ class AzureCostMgmtConnector(BaseConnector):
                 },
             }
             if account_agreement_type == "MicrosoftPartnerAgreement":
-                parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_MPA)
+                parameters["dataset"]["grouping"] = (
+                    BENEFIT_GROUPING + BENEFIT_GROUPING_MPA
+                )
             elif account_agreement_type == "EnterpriseAgreement":
-                parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_EA)
+                parameters["dataset"]["grouping"] = (
+                    BENEFIT_GROUPING + BENEFIT_GROUPING_EA
+                )
             else:
-                parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_MCA)
+                parameters["dataset"]["grouping"] = (
+                    BENEFIT_GROUPING + BENEFIT_GROUPING_MCA
+                )
 
             _LOGGER.debug(f"[query_usage] parameters: {parameters}")
 
@@ -300,13 +306,13 @@ class AzureCostMgmtConnector(BaseConnector):
     def convert_nested_dictionary(self, cloud_svc_object):
         cloud_svc_dict = {}
         if hasattr(
-                cloud_svc_object, "__dict__"
+            cloud_svc_object, "__dict__"
         ):  # if cloud_svc_object is not a dictionary type but has dict method
             cloud_svc_dict = cloud_svc_object.__dict__
         elif isinstance(cloud_svc_object, dict):
             cloud_svc_dict = cloud_svc_object
         elif not isinstance(
-                cloud_svc_object, list
+            cloud_svc_object, list
         ):  # if cloud_svc_object is one of type like int, float, char, ...
             return cloud_svc_object
 
@@ -394,8 +400,8 @@ class AzureCostMgmtConnector(BaseConnector):
     @staticmethod
     def _check_secret_data(secret_data):
         if (
-                "billing_account_id" not in secret_data
-                and "subscription_id" not in secret_data
+            "billing_account_id" not in secret_data
+            and "subscription_id" not in secret_data
         ):
             raise ERROR_REQUIRED_PARAMETER(
                 key="secret_data.billing_account_id or secret_data.subscription_id"
