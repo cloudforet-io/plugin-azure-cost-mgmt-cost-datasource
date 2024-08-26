@@ -195,6 +195,8 @@ class AzureCostMgmtConnector(BaseConnector):
             else:
                 parameters["dataset"]["grouping"].extend(BENEFIT_GROUPING_MCA)
 
+            _LOGGER.debug(f"[query_usage] parameters: {parameters}")
+
             while self.next_link:
                 url = self.next_link
                 headers = self._make_request_headers()

@@ -1,9 +1,12 @@
+import logging
 from typing import Generator
 from spaceone.cost_analysis.plugin.data_source.lib.server import DataSourcePluginServer
 
 from .manager import CostManager, DataSourceManager, JobManager
 
 app = DataSourcePluginServer()
+
+_LOGGER = logging.getLogger("spaceone")
 
 
 @app.route("DataSource.init")
@@ -159,14 +162,20 @@ def cost_get_data(params: dict) -> Generator[dict, None, None]:
         secret_data, task_options.get("billing_tenant_id")
     )
 
-    if options.get("cost_metric") == "AmortizedCost" and task_options.get(
-        "is_benefit_job", False
-    ):
+    is_benefit_job = task_options.get("is_benefit_job", False)
+    cost_metric = options.get("cost_metric", "ActualCost")
+
+    if not is_benefit_job:
+        for cost_response in cost_mgr.get_data(**params):
+            yield {"results": cost_response}
+    elif cost_metric == "AmortizedCost" and is_benefit_job:
         for cost_response in cost_mgr.get_benefit_data(**params):
             yield {"results": cost_response}
     else:
-        for cost_response in cost_mgr.get_data(**params):
-            yield {"results": cost_response}
+        _LOGGER.error(
+            f"[get_cost_data] Check options, options: {options} , task_options: {task_options}"
+        )
+        raise Exception("Invalid cost_metric or is_benefit_job")
 
 
 def __remove_duplicate_list_of_dict(changed: list) -> list:

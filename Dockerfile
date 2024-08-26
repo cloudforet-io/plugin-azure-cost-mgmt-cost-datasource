@@ -15,7 +15,7 @@ RUN pip install --upgrade pip && \
 
 ARG CACHEBUST=1
 RUN pip install --upgrade spaceone-api && \
-    pip install --upgrade --pre spaceone-cost-analysis==2.0.dev147
+    pip install --upgrade --pre spaceone-cost-analysis==2.0.dev150
 
 
 
