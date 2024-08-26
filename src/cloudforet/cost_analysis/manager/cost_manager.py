@@ -453,7 +453,7 @@ class CostManager(BaseManager):
             additional_info["Meter Name"] = result["metername"]
 
         if result.get("term") != "" and result.get("term"):
-            term = result.get("term").trim().lower()
+            term = result.get("term").strip().lower()
             if term in ["1year"]:
                 term = 12
             elif term in ["3year"]:
