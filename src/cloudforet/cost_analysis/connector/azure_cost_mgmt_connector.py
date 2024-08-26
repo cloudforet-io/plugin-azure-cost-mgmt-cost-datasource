@@ -1,12 +1,13 @@
 import logging
 import os
+import tempfile
 import time
 import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from functools import wraps
-from io import StringIO
+from io import BytesIO
 from typing import get_type_hints, Union, Any
 
 from azure.identity import DefaultAzureCredential
@@ -130,7 +131,7 @@ class AzureCostMgmtConnector(BaseConnector):
         return True
 
     def list_reservation_transactions_by_billing_profile_id(
-        self, query_filter: str
+            self, query_filter: str
     ) -> list:
         transactions = []
         try:
@@ -165,12 +166,12 @@ class AzureCostMgmtConnector(BaseConnector):
         return billing_accounts_info
 
     def query_usage_http(
-        self,
-        secret_data: dict,
-        start: datetime,
-        end: datetime,
-        account_agreement_type: str,
-        options=None,
+            self,
+            secret_data: dict,
+            start: datetime,
+            end: datetime,
+            account_agreement_type: str,
+            options=None,
     ):
         try:
             billing_account_id = secret_data["billing_account_id"]
@@ -250,25 +251,24 @@ class AzureCostMgmtConnector(BaseConnector):
 
     def get_cost_data(self, blobs: list, options: dict) -> list:
         _LOGGER.debug(f"[get_cost_data] options: {options}")
-
         total_cost_count = 0
         for blob in blobs:
-            response = self._download_cost_data(blob)
+            with tempfile.TemporaryFile() as temp_file:
+                self._download_cost_data(blob, temp_file)
 
-            df_chunk = pd.read_csv(
-                StringIO(response.text),
-                low_memory=False,
-                chunksize=_PAGE_SIZE,
-            )
+                df_chunk = pd.read_csv(
+                    BytesIO(temp_file.read()),
+                    low_memory=False,
+                    chunksize=_PAGE_SIZE,
+                )
 
-            for df in df_chunk:
-                df = df.replace({np.nan: None})
+                for df in df_chunk:
+                    df = df.replace({np.nan: None})
 
-                costs_data = df.to_dict("records")
-                total_cost_count += len(costs_data)
-                yield costs_data
-            del df_chunk
-            del response
+                    costs_data = df.to_dict("records")
+                    total_cost_count += len(costs_data)
+                    yield costs_data
+                del df_chunk
         _LOGGER.debug(f"[get_cost_data] total_cost_count: {total_cost_count}")
 
     def list_by_billing_account(self):
@@ -300,13 +300,13 @@ class AzureCostMgmtConnector(BaseConnector):
     def convert_nested_dictionary(self, cloud_svc_object):
         cloud_svc_dict = {}
         if hasattr(
-            cloud_svc_object, "__dict__"
+                cloud_svc_object, "__dict__"
         ):  # if cloud_svc_object is not a dictionary type but has dict method
             cloud_svc_dict = cloud_svc_object.__dict__
         elif isinstance(cloud_svc_object, dict):
             cloud_svc_dict = cloud_svc_object
         elif not isinstance(
-            cloud_svc_object, list
+                cloud_svc_object, list
         ):  # if cloud_svc_object is one of type like int, float, char, ...
             return cloud_svc_object
 
@@ -356,13 +356,15 @@ class AzureCostMgmtConnector(BaseConnector):
             raise e
 
     @staticmethod
-    def _download_cost_data(blob: dict) -> requests.Response:
+    def _download_cost_data(blob: dict, temp_file) -> None:
         try:
-            response = requests.get(blob.get("blob_link"))
-            if response.status_code != 200:
-                raise ERROR_CONNECTOR_CALL_API(reason=f"{response.reason}")
-            _LOGGER.debug(f"[_download_cost_data] response: {response}")
-            return response
+            with requests.get(blob.get("blob_link"), stream=True) as response:
+                response.raise_for_status()
+
+                for chunk in response.iter_content(chunk_size=_PAGE_SIZE):
+                    temp_file.write(chunk)
+            temp_file.seek(0)
+
         except Exception as e:
             _LOGGER.error(f"[_download_cost_data] download error: {e}", exc_info=True)
             raise e
@@ -392,8 +394,8 @@ class AzureCostMgmtConnector(BaseConnector):
     @staticmethod
     def _check_secret_data(secret_data):
         if (
-            "billing_account_id" not in secret_data
-            and "subscription_id" not in secret_data
+                "billing_account_id" not in secret_data
+                and "subscription_id" not in secret_data
         ):
             raise ERROR_REQUIRED_PARAMETER(
                 key="secret_data.billing_account_id or secret_data.subscription_id"
