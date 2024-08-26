@@ -65,7 +65,7 @@ class CostManager(BaseManager):
         domain_id: str,
     ):
         self.azure_cm_connector.create_session(options, secret_data, schema)
-        account_agreement_type = task_options.get("agreement_type")
+        account_agreement_type = task_options.get("account_agreement_type")
         start: datetime = self._get_first_date_of_month(task_options["start"])
         end: datetime = datetime.utcnow()
 
