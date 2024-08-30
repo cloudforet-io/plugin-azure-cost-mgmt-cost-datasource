@@ -63,43 +63,47 @@ class DataSourceManager(BaseManager):
             "additional_info": {},
         }
 
-        plugin_metadata.additional_info = {
-            "Customer Name": {"name": "Customer Name", "visible": True},
-            "Tenant Id": {"name": "Tenant Id", "visible": False},
-            "Subscription Name": {"name": "Subscription Name", "visible": True},
-            "Subscription Id": {"name": "Subscription Id", "visible": False},
-            "Resource Group": {"name": "Resource Group", "visible": True},
-            "Resource Name": {"name": "Resource Name", "visible": True},
-            "Resource Id": {"name": "Resource Id", "visible": False},
-            "Charge Type": {
-                "name": "Charge Type",
-                "visible": True,
-                "enums": [
-                    "Usage",
-                    "Purchase",
-                    "UnusedReservation",
-                    "UnusedSavingsPlan",
-                    "Refund",
-                    "RoundAdjustment",
-                ],
-            },
-            "Pricing Model": {
-                "name": "Pricing Model",
-                "visible": True,
-                "enums": ["OnDemand", "Reservation", "SavingsPlan", "Spot"],
-            },
-            "Benefit Name": {"name": "Benefit Name", "visible": False},
-            "Benefit Id": {"name": "Benefit Id", "visible": False},
-            "Frequency": {"name": "Frequency", "visible": False},
-            "Instance Type": {"name": "Instance Type", "visible": True},
-            "Meter SubCategory": {"name": "Meter SubCategory", "visible": False},
-            "PayG Unit Price": {"name": "PayG Unit Price", "visible": False},
-            "Reservation Id": {"name": "Reservation Id", "visible": False},
-            "Reservation Name": {"name": "Reservation Name", "visible": False},
-            "Service Family": {"name": "Service Family", "visible": True},
-            "Term": {"name": "Term", "visible": False},
-            "Usage Type Details": {"name": "Usage Type Details", "visible": True},
-        }
+        plugin_metadata["additional_info"].update(
+            {
+                "Customer Name": {"name": "Customer Name", "visible": True},
+                "Tenant Id": {"name": "Tenant Id", "visible": False},
+                "Subscription Name": {"name": "Subscription Name", "visible": True},
+                "Subscription Id": {"name": "Subscription Id", "visible": False},
+                "Resource Group": {"name": "Resource Group", "visible": True},
+                "Resource Name": {"name": "Resource Name", "visible": True},
+                "Resource Id": {"name": "Resource Id", "visible": False},
+                "Charge Type": {
+                    "name": "Charge Type",
+                    "visible": True,
+                    "enums": [
+                        "Usage",
+                        "Purchase",
+                        "UnusedReservation",
+                        "UnusedSavingsPlan",
+                        "Refund",
+                        "RoundAdjustment",
+                    ],
+                },
+                "Pricing Model": {
+                    "name": "Pricing Model",
+                    "visible": True,
+                    "enums": ["OnDemand", "Reservation", "SavingsPlan", "Spot"],
+                },
+                "Benefit Name": {"name": "Benefit Name", "visible": False},
+                "Benefit Id": {"name": "Benefit Id", "visible": False},
+                "Frequency": {"name": "Frequency", "visible": False},
+                "Instance Type": {"name": "Instance Type", "visible": True},
+                "Meter Id": {"name": "Meter Id", "visible": False},
+                "Meter Name": {"name": "Meter Name", "visible": False},
+                "Meter SubCategory": {"name": "Meter SubCategory", "visible": False},
+                "PayG Unit Price": {"name": "PayG Unit Price", "visible": False},
+                "Reservation Id": {"name": "Reservation Id", "visible": False},
+                "Reservation Name": {"name": "Reservation Name", "visible": False},
+                "Service Family": {"name": "Service Family", "visible": True},
+                "Term": {"name": "Term", "visible": False},
+                "Usage Type Details": {"name": "Usage Type Details", "visible": True},
+            }
+        )
 
         if currency := options.get("currency"):
             plugin_metadata["currency"] = currency
