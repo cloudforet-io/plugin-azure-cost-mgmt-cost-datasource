@@ -24,7 +24,7 @@ __all__ = ["AzureCostMgmtConnector"]
 
 _LOGGER = logging.getLogger("spaceone")
 
-_PAGE_SIZE = 5000
+_PAGE_SIZE = 7000
 
 
 def azure_exception_handler(func):
