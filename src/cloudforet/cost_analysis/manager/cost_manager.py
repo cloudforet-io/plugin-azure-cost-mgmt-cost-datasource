@@ -3,7 +3,7 @@ import logging
 import json
 import time
 import pandas as pd
-from typing import Union
+from typing import Union, Tuple
 from datetime import datetime, timezone
 
 from spaceone.core.error import *
@@ -328,14 +328,14 @@ class CostManager(BaseManager):
         usage_type: str = result.get("metername", "")
         usage_unit: str = str(result.get("unitofmeasure", ""))
         region_code: str = self._get_region_code(result.get("resourcelocation", ""))
-        product: str = result.get("metercategory", "")
+        product: str = self._get_product_from_result(result)
         tags: dict = self._convert_tags_str_to_dict(result.get("tags"))
 
-        aggregate_data = self._get_aggregate_data(result, options)
+        aggregate_data = self._get_aggregate_data(result, options, additional_info)
 
         # Set Network Traffic Cost at Additional Info
         additional_info: dict = self._set_network_traffic_cost(
-            additional_info, product, usage_type
+            additional_info, result, usage_type
         )
 
         data = {
@@ -453,11 +453,13 @@ class CostManager(BaseManager):
             additional_info["Meter Name"] = result["metername"]
 
         if result.get("term") != "" and result.get("term"):
-            term = result.get("term").strip().lower()
-            if term in ["1year"]:
-                term = 12
-            elif term in ["3year"]:
-                term = 36
+            term = result.get("term")
+            if isinstance(term, str):
+                term = term.strip().lower()
+                if term in ["1year"]:
+                    term = 12
+                elif term in ["3years"]:
+                    term = 36
 
             additional_info["Term"] = term
 
@@ -498,38 +500,44 @@ class CostManager(BaseManager):
 
         return cost_pay_as_you_go
 
-    def _get_aggregate_data(self, result: dict, options: dict) -> dict:
+    def _get_aggregate_data(
+        self, result: dict, options: dict, additional_info: dict
+    ) -> Tuple[dict, dict]:
         aggregate_data = {}
 
-        if options.get("pay_as_you_go", False):
-            return aggregate_data
+        if not options.get("pay_as_you_go", False):
 
-        cost_in_billing_currency = self._convert_str_to_float_format(
-            result.get("costinbillingcurrency", 0.0)
-        )
+            cost_in_billing_currency = self._convert_str_to_float_format(
+                result.get("costinbillingcurrency", 0.0)
+            )
 
-        if options.get("cost_metric") == "AmortizedCost":
-            aggregate_data["Amortized Cost"] = cost_in_billing_currency
+            if options.get("cost_metric") == "AmortizedCost":
+                aggregate_data["Amortized Cost"] = cost_in_billing_currency
 
-            if result.get("reservationname") != "" and result.get("reservationname"):
-                aggregate_data["Actual Cost"] = 0
-            elif result.get("benefitname") != "" and result.get("benefitname"):
-                aggregate_data["Actual Cost"] = 0
+                if result.get("reservationname") != "" and result.get(
+                    "reservationname"
+                ):
+                    aggregate_data["Actual Cost"] = 0
+                elif result.get("benefitname") != "" and result.get("benefitname"):
+                    aggregate_data["Actual Cost"] = 0
+                else:
+                    aggregate_data["Actual Cost"] = cost_in_billing_currency
+
+                if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:
+                    if cost_in_billing_currency > 0:
+                        aggregate_data["Saved Cost"] = self._get_saved_cost(
+                            result, cost_in_billing_currency
+                        )
+                    else:
+                        aggregate_data["Saved Cost"] = 0.0
+
+                    if exchange_rate := result.get("exchange_rate"):
+                        aggregate_data["Exchange Rate"] = exchange_rate
+
             else:
                 aggregate_data["Actual Cost"] = cost_in_billing_currency
 
-            if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:
-                if cost_in_billing_currency > 0:
-                    aggregate_data["Saved Cost"] = self._get_saved_cost(
-                        result, cost_in_billing_currency
-                    )
-                else:
-                    aggregate_data["Saved Cost"] = 0.0
-
-        else:
-            aggregate_data["Actual Cost"] = cost_in_billing_currency
-
-        return aggregate_data
+        return aggregate_data, additional_info
 
     def _get_saved_cost(self, result: dict, cost: float) -> float:
         exchange_rate = 1.0
@@ -561,6 +569,7 @@ class CostManager(BaseManager):
         retail_cost = exchange_rate * quantity * unit_price
         if retail_cost:
             saved_cost = retail_cost - cost
+            result["exchange_rate"] = exchange_rate
 
         return saved_cost
 
@@ -573,12 +582,24 @@ class CostManager(BaseManager):
             for item in items:
                 sku_id = item.get("skuId").replace("/", "")
                 if item.get("meterId") == meter_id and sku_id == product_id:
-                    unit_price = item.get("retailPrice", 1.0)
+                    unit_price = item.get("retailPrice", 0.0)
                     break
 
         except Exception as e:
             _LOGGER.error(f"[_get_unit_price_from_meter_id] get unit price error: {e}")
         return unit_price
+
+    @staticmethod
+    def _get_product_from_result(result: dict) -> str:
+        charge_type = result.get("chargetype")
+        pricing_model = result.get("pricingmodel")
+
+        if charge_type in ["Purchase", "Refund"] and pricing_model == "OnDemand":
+            product = result.get("productname", "")
+        else:
+            product = result.get("metercategory", "")
+
+        return product
 
     @staticmethod
     def _get_region_code(resource_location: str) -> str:
@@ -795,10 +816,29 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _set_network_traffic_cost(
-        additional_info: dict, product: str, usage_type: str
+        additional_info: dict, result: dict, usage_type: str
     ) -> dict:
-        if product in ["Bandwidth", "Content Delivery Network"]:
-            additional_info["Usage Type Details"] = usage_type
+        meter_category = result.get("metercategory", "")
+        result_additional_info = result.get("additional_info", {}) or {}
+        data_transfer_direction = result_additional_info.get("DataTransferDirection")
+
+        if data_transfer_direction:
+            if data_transfer_direction == "DataTrIn":
+                additional_info["Usage Type Details"] = "Transfer In"
+            elif data_transfer_direction == "DataTrOut":
+                additional_info["Usage Type Details"] = "Transfer Out"
+            else:
+                additional_info["Usage Type Details"] = "Transfer Etc"
+        elif meter_category in ["Bandwidth"]:
+            additional_info["Usage Type Details"] = "Transfer Etc"
+        elif meter_category in ["Azure Front Door Service"]:
+            meter_name = result.get("metername")
+            if meter_name == "Standard Data Transfer In":
+                additional_info["Usage Type Details"] = "Transfer In"
+            elif meter_name == "Standard Data Transfer Out":
+                additional_info["Usage Type Details"] = "Transfer Out"
+            else:
+                additional_info["Usage Type Details"] = "Transfer Etc"
 
         return additional_info
 
