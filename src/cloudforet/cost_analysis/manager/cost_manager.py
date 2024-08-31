@@ -821,6 +821,7 @@ class CostManager(BaseManager):
         additional_info: dict, result: dict, usage_type: str
     ) -> dict:
         meter_category = result.get("metercategory", "")
+        meter_name = result.get("metername", "")
         result_additional_info = result.get("additional_info", {}) or {}
         data_transfer_direction = result_additional_info.get("DataTransferDirection")
 
@@ -831,10 +832,16 @@ class CostManager(BaseManager):
                 additional_info["Usage Type Details"] = "Transfer Out"
             else:
                 additional_info["Usage Type Details"] = "Transfer Etc"
+
         elif meter_category in ["Bandwidth"]:
-            additional_info["Usage Type Details"] = "Transfer Etc"
+            if "Data Transfer In" in meter_name:
+                additional_info["Usage Type Details"] = "Transfer In"
+            elif "Data Transfer Out" in meter_name:
+                additional_info["Usage Type Details"] = "Transfer Out"
+            else:
+                additional_info["Usage Type Details"] = "Transfer Etc"
+
         elif meter_category in ["Azure Front Door Service"]:
-            meter_name = result.get("metername")
             if meter_name == "Standard Data Transfer In":
                 additional_info["Usage Type Details"] = "Transfer In"
             elif meter_name == "Standard Data Transfer Out":
