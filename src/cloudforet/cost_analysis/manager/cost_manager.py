@@ -319,7 +319,7 @@ class CostManager(BaseManager):
         options: dict,
         tenant_id: str = None,
         agreement_type: str = None,
-    ):
+    ) -> dict:
         additional_info: dict = self._get_additional_info(result, options, tenant_id)
         cost: float = self._get_cost_from_result_with_options(result, options)
         usage_quantity: float = self._convert_str_to_float_format(
@@ -331,7 +331,9 @@ class CostManager(BaseManager):
         product: str = self._get_product_from_result(result)
         tags: dict = self._convert_tags_str_to_dict(result.get("tags"))
 
-        aggregate_data = self._get_aggregate_data(result, options, additional_info)
+        aggregate_data, additional_info = self._get_aggregate_data(
+            result, options, additional_info
+        )
 
         # Set Network Traffic Cost at Additional Info
         additional_info: dict = self._set_network_traffic_cost(
@@ -819,6 +821,7 @@ class CostManager(BaseManager):
         additional_info: dict, result: dict, usage_type: str
     ) -> dict:
         meter_category = result.get("metercategory", "")
+        meter_name = result.get("metername", "")
         result_additional_info = result.get("additional_info", {}) or {}
         data_transfer_direction = result_additional_info.get("DataTransferDirection")
 
@@ -829,10 +832,16 @@ class CostManager(BaseManager):
                 additional_info["Usage Type Details"] = "Transfer Out"
             else:
                 additional_info["Usage Type Details"] = "Transfer Etc"
+
         elif meter_category in ["Bandwidth"]:
-            additional_info["Usage Type Details"] = "Transfer Etc"
+            if "Data Transfer In" in meter_name:
+                additional_info["Usage Type Details"] = "Transfer In"
+            elif "Data Transfer Out" in meter_name:
+                additional_info["Usage Type Details"] = "Transfer Out"
+            else:
+                additional_info["Usage Type Details"] = "Transfer Etc"
+
         elif meter_category in ["Azure Front Door Service"]:
-            meter_name = result.get("metername")
             if meter_name == "Standard Data Transfer In":
                 additional_info["Usage Type Details"] = "Transfer In"
             elif meter_name == "Standard Data Transfer Out":
