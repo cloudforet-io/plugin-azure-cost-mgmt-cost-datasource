@@ -21,6 +21,57 @@ _DEFAULT_DATA_SOURCE_RULES = [
     }
 ]
 
+_DEFAULT_METADATA_ADDITIONAL_INFO = {
+    "Tenant Id": {"name": "Tenant Id", "visible": False},
+    "Subscription Name": {"name": "Subscription Name", "visible": True},
+    "Subscription Id": {"name": "Subscription Id", "visible": False},
+    "Resource Group": {"name": "Resource Group", "visible": True},
+    "Resource Name": {"name": "Resource Name", "visible": True},
+    "Resource Id": {"name": "Resource Id", "visible": False},
+    "Charge Type": {
+        "name": "Charge Type",
+        "visible": True,
+        "enums": [
+            "Usage",
+            "Purchase",
+            "UnusedReservation",
+            "UnusedSavingsPlan",
+            "Refund",
+            "RoundAdjustment",
+        ],
+    },
+    "Pricing Model": {
+        "name": "Pricing Model",
+        "visible": True,
+        "enums": ["OnDemand", "Reservation", "SavingsPlan", "Spot"],
+    },
+    "Benefit Name": {"name": "Benefit Name", "visible": False},
+    "Benefit Id": {"name": "Benefit Id", "visible": False},
+    "Frequency": {"name": "Frequency", "visible": False},
+    "Instance Type": {"name": "Instance Type", "visible": True},
+    "Meter Id": {"name": "Meter Id", "visible": False},
+    "Meter Name": {"name": "Meter Name", "visible": False},
+    "Meter SubCategory": {"name": "Meter SubCategory", "visible": False},
+    "PayG Unit Price": {"name": "PayG Unit Price", "visible": False},
+    "Reservation Id": {"name": "Reservation Id", "visible": False},
+    "Reservation Name": {"name": "Reservation Name", "visible": False},
+    "Service Family": {"name": "Service Family", "visible": True},
+    "Term": {"name": "Term", "visible": False},
+    "Usage Type Details": {"name": "Usage Type Details", "visible": True},
+    "Exchange Rate": {"name": "Exchange Rate", "visible": False},
+    "Billing Tenant Id": {"name": "Billing Tenant Id", "visible": True},
+    "Adjustment Name": {"name": "Adjustment Name", "visible": False},
+}
+
+_METADATA_INFO_ADDITIONAL_INFO_MPA = {
+    "Customer Name": {"name": "Customer Name", "visible": True}
+}
+
+_METADATA_INFO_ADDITIONAL_INFO_EA = {
+    "Department Name": {"name": "Department Name", "visible": True},
+    "Enrollment Account Name": {"name": "Enrollment Account Name", "visible": True},
+}
+
 
 class DataSourceManager(BaseManager):
     @staticmethod
@@ -58,52 +109,18 @@ class DataSourceManager(BaseManager):
             "currency": "KRW",
             "use_account_routing": False,
             "exclude_license_cost": False,
+            "include_credit_cost": False,
             "cost_info": {},
             "data_info": {},
-            "additional_info": {},
+            "additional_info": _DEFAULT_METADATA_ADDITIONAL_INFO,
         }
 
-        plugin_metadata["additional_info"].update(
-            {
-                "Customer Name": {"name": "Customer Name", "visible": True},
-                "Tenant Id": {"name": "Tenant Id", "visible": False},
-                "Subscription Name": {"name": "Subscription Name", "visible": True},
-                "Subscription Id": {"name": "Subscription Id", "visible": False},
-                "Resource Group": {"name": "Resource Group", "visible": True},
-                "Resource Name": {"name": "Resource Name", "visible": True},
-                "Resource Id": {"name": "Resource Id", "visible": False},
-                "Charge Type": {
-                    "name": "Charge Type",
-                    "visible": True,
-                    "enums": [
-                        "Usage",
-                        "Purchase",
-                        "UnusedReservation",
-                        "UnusedSavingsPlan",
-                        "Refund",
-                        "RoundAdjustment",
-                    ],
-                },
-                "Pricing Model": {
-                    "name": "Pricing Model",
-                    "visible": True,
-                    "enums": ["OnDemand", "Reservation", "SavingsPlan", "Spot"],
-                },
-                "Benefit Name": {"name": "Benefit Name", "visible": False},
-                "Benefit Id": {"name": "Benefit Id", "visible": False},
-                "Frequency": {"name": "Frequency", "visible": False},
-                "Instance Type": {"name": "Instance Type", "visible": True},
-                "Meter Id": {"name": "Meter Id", "visible": False},
-                "Meter Name": {"name": "Meter Name", "visible": False},
-                "Meter SubCategory": {"name": "Meter SubCategory", "visible": False},
-                "PayG Unit Price": {"name": "PayG Unit Price", "visible": False},
-                "Reservation Id": {"name": "Reservation Id", "visible": False},
-                "Reservation Name": {"name": "Reservation Name", "visible": False},
-                "Service Family": {"name": "Service Family", "visible": True},
-                "Term": {"name": "Term", "visible": False},
-                "Usage Type Details": {"name": "Usage Type Details", "visible": True},
-            }
-        )
+        if options.get("account_agreement_type") == "MicrosoftPartnerAgreement":
+            plugin_metadata["additional_info"].update(
+                _METADATA_INFO_ADDITIONAL_INFO_MPA
+            )
+        elif options.get("account_agreement_type") == "EnterpriseAgreement":
+            plugin_metadata["additional_info"].update(_METADATA_INFO_ADDITIONAL_INFO_EA)
 
         if currency := options.get("currency"):
             plugin_metadata["currency"] = currency
@@ -130,6 +147,10 @@ class DataSourceManager(BaseManager):
 
         if options.get("exclude_license_cost"):
             plugin_metadata["exclude_license_cost"] = True
+
+        # Now only Support Enterprise Agreement
+        if options.get("include_credit_cost"):
+            plugin_metadata["include_credit_cost"] = True
 
         return {"metadata": plugin_metadata}
 

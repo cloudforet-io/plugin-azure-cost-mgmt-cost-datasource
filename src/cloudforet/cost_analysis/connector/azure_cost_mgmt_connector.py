@@ -75,25 +75,7 @@ class AzureCostMgmtConnector(BaseConnector):
         self.billing_client = None
         self.cost_mgmt_client = None
         self.billing_account_id = None
-        self._billing_profile_id = None
-        self._invoice_section_id = None
         self.next_link = None
-
-    @property
-    def billing_profile_id(self):
-        return self._billing_profile_id
-
-    @billing_profile_id.setter
-    def billing_profile_id(self, billing_profile_id: str):
-        self._billing_profile_id = billing_profile_id
-
-    @property
-    def invoice_section_id(self):
-        return self._invoice_section_id
-
-    @invoice_section_id.setter
-    def invoice_section_id(self, invoice_section_id: str):
-        self._invoice_section_id = invoice_section_id
 
     def create_session(self, options: dict, secret_data: dict, schema: str) -> None:
         self._check_secret_data(secret_data)
@@ -118,42 +100,11 @@ class AzureCostMgmtConnector(BaseConnector):
             credential=credential, subscription_id=subscription_id
         )
 
-    def check_reservation_transaction(self) -> bool:
-        if not self.billing_account_id:
-            _LOGGER.debug("[check_reservation_transaction] billing_account_id is None")
-            return False
-        elif not self.billing_profile_id:
-            _LOGGER.debug("[check_reservation_transaction] billing_profile_id is None")
-            return False
-        elif not self.invoice_section_id:
-            _LOGGER.debug("[check_reservation_transaction] invoice_section_id is None")
-            return False
-        return True
-
-    def list_reservation_transactions_by_billing_profile_id(
-        self, query_filter: str
-    ) -> list:
-        transactions = []
-        try:
-            transactions = self.consumption_client.reservation_transactions.list_by_billing_profile(
-                billing_account_id=self.billing_account_id,
-                billing_profile_id=self.billing_profile_id,
-                filter=query_filter,
-            )
-        except Exception as e:
-            _LOGGER.error(
-                f"[list_reservation_transactions_by_billing_profile_id] error message: {e}",
-                exc_info=True,
-            )
-
-        return transactions
-
     def list_billing_accounts(self) -> list:
         billing_accounts_info = []
 
-        billing_account_name = self.billing_account_id
         billing_accounts = self.billing_client.customers.list_by_billing_account(
-            billing_account_name=billing_account_name
+            billing_account_name=self.billing_account_id
         )
         for billing_account in billing_accounts:
             billing_accounts_info.append(
@@ -255,6 +206,36 @@ class AzureCostMgmtConnector(BaseConnector):
         )
         return blobs
 
+    def list_by_billing_account(self):
+        return self.billing_client.billing_subscriptions.list_by_billing_account(
+            billing_account_name=self.billing_account_id
+        )
+
+    @staticmethod
+    def get_retail_price(meter_id: str):
+        url = f"https://prices.azure.com/api/retail/prices?$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
+        try:
+            response = requests.get(url=url)
+            return response.json()
+        except Exception as e:
+            _LOGGER.error(f"[ERROR] get_retail_price {e}")
+            raise ERROR_UNKNOWN(message=f"[ERROR] get_retail_price failed {e}")
+
+    def get_credit_data(
+        self, billing_period_name: str, account_agreement_type: str
+    ) -> dict:
+        if account_agreement_type == "MicrosoftPartnerAgreement":
+            credit_info = {}
+        elif account_agreement_type == "EnterpriseAgreement":
+            response = self.consumption_client.balances.get_for_billing_period_by_billing_account(
+                billing_account_id=self.billing_account_id,
+                billing_period_name=billing_period_name,
+            )
+            credit_info = self.convert_nested_dictionary(response)
+        else:
+            credit_info = {}
+        return credit_info
+
     def get_cost_data(self, blobs: list, options: dict) -> list:
         _LOGGER.debug(f"[get_cost_data] options: {options}")
         total_cost_count = 0
@@ -276,32 +257,6 @@ class AzureCostMgmtConnector(BaseConnector):
                     yield costs_data
                 del df_chunk
         _LOGGER.debug(f"[get_cost_data] total_cost_count: {total_cost_count}")
-
-    def list_by_billing_account(self):
-        billing_account_name = self.billing_account_id
-        return self.billing_client.billing_subscriptions.list_by_billing_account(
-            billing_account_name=billing_account_name
-        )
-
-    def get_retail_price(self, meter_id: str):
-        url = f"https://prices.azure.com/api/retail/prices?$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
-        try:
-            response = requests.get(url=url)
-            return response.json()
-        except Exception as e:
-            _LOGGER.error(f"[ERROR] get_retail_price {e}")
-            raise ERROR_UNKNOWN(message=f"[ERROR] get_retail_price failed {e}")
-
-    def _make_request_headers(self, client_type=None):
-        access_token = self._get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-        if client_type:
-            headers["ClientType"] = client_type
-
-        return headers
 
     def convert_nested_dictionary(self, cloud_svc_object):
         cloud_svc_dict = {}
@@ -329,6 +284,17 @@ class AzureCostMgmtConnector(BaseConnector):
                 cloud_svc_dict[key] = value_list
 
         return cloud_svc_dict
+
+    def _make_request_headers(self, client_type=None):
+        access_token = self._get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        if client_type:
+            headers["ClientType"] = client_type
+
+        return headers
 
     def _retry_request(self, response, url, headers, json, retry_count, method="post"):
         try:

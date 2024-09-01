@@ -140,6 +140,10 @@ class JobManager(BaseManager):
                             "start": start_month,
                             "account_agreement_type": billing_account_agreement_type,
                             "collect_scope": "billing_account_id",
+                            "billing_tenant_id": secret_data["tenant_id"],
+                            "include_credit_cost": options.get(
+                                "include_credit_cost", False
+                            ),
                         }
                     }
                 ]
