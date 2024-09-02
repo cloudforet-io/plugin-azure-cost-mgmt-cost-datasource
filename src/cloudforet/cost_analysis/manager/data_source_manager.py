@@ -1,5 +1,6 @@
 import logging
 
+from spaceone.core.error import ERROR_INVALID_ARGUMENT
 from spaceone.core.manager import BaseManager
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
     AzureCostMgmtConnector,
@@ -61,6 +62,7 @@ _DEFAULT_METADATA_ADDITIONAL_INFO = {
     "Exchange Rate": {"name": "Exchange Rate", "visible": False},
     "Billing Tenant Id": {"name": "Billing Tenant Id", "visible": True},
     "Adjustment Name": {"name": "Adjustment Name", "visible": False},
+    "Product Id": {"name": "Product Id", "visible": False},
 }
 
 _METADATA_INFO_ADDITIONAL_INFO_MPA = {
@@ -84,6 +86,8 @@ class DataSourceManager(BaseManager):
                     "supported_secret_types(list)": [],
                     "currency(str)": "KRW",
                     "use_account_routing(bool)": False,
+                    "exclude_license_cost(bool)": False,
+                    "include_credit_cost(bool)": False,
                     "cost_info(dict)": {
                         "name" :"PayAsYouGo",
                         "unit" :"KRW"
@@ -97,7 +101,8 @@ class DataSourceManager(BaseManager):
                     "additional_info(dict)": {
                         "Subscription Name": {
                             "name": "Subscription Name",
-                            "visible": True
+                            "visible": True,
+                            "enums": ["","",...]
                         }
                     }
                 }
@@ -114,6 +119,8 @@ class DataSourceManager(BaseManager):
             "data_info": {},
             "additional_info": _DEFAULT_METADATA_ADDITIONAL_INFO,
         }
+
+        _check_options(options)
 
         if options.get("account_agreement_type") == "MicrosoftPartnerAgreement":
             plugin_metadata["additional_info"].update(
@@ -159,3 +166,15 @@ class DataSourceManager(BaseManager):
             "AzureCostMgmtConnector"
         )
         azure_cm_connector.create_session(options, secret_data, schema)
+
+
+def _check_options(options: dict):
+    if account_agreement_type := options.get("account_agreement_type"):
+        if options["account_agreement_type"] not in [
+            "MicrosoftPartnerAgreement",
+            "EnterpriseAgreement",
+            "MicrosoftCustomerAgreement",
+        ]:
+            raise ERROR_INVALID_ARGUMENT(
+                key="options.account_agreement_type", value=account_agreement_type
+            )
