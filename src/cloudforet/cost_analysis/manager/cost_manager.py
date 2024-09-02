@@ -304,6 +304,9 @@ class CostManager(BaseManager):
         if result.get("productname"):
             additional_info["Product Name"] = result["productname"]
 
+        if result.get("productid") != "" and result.get("productid"):
+            additional_info["Product Id"] = result["productid"]
+
         if result.get("customername") != "" and result.get("customername"):
             additional_info["Customer Name"] = result["customername"]
 
@@ -328,9 +331,10 @@ class CostManager(BaseManager):
             if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:
                 meter_id = result.get("meterid")
                 product_id = result.get("productid")
+                currency = result.get("billingcurrency", "USD")
                 if not self.retail_price_map.get(f"{meter_id}:{product_id}"):
                     unit_price = self._get_unit_price_from_meter_id(
-                        meter_id, product_id
+                        meter_id, product_id, currency
                     )
                     self.retail_price_map[f"{meter_id}:{product_id}"] = unit_price
 
@@ -437,21 +441,6 @@ class CostManager(BaseManager):
             return credits_data
 
         billed_date = _start.strftime("%Y-%m-%d")
-        adjustment_details = result.get("adjustment_details", []) or []
-
-        for adjustment_detail in adjustment_details:
-            credit_data = {
-                "cost": adjustment_detail.get("value", 0.0) or 0.0,
-                "product": "Credit",
-                "billed_date": billed_date,
-                "additional_info": {
-                    "Service Family": "Microsoft.Consumption/adjustments",
-                    "Adjustment Name": adjustment_detail.get("name"),
-                },
-            }
-            if billing_tenant_id:
-                credit_data["additional_info"]["Billing Tenant Id"] = billing_tenant_id
-            credits_data.append(credit_data)
 
         credit_data = {
             "cost": -(result.get("utilized", 0.0) or 0.0),
@@ -463,6 +452,7 @@ class CostManager(BaseManager):
         }
         if billing_tenant_id:
             credit_data["additional_info"]["Billing Tenant Id"] = billing_tenant_id
+
         credits_data.append(credit_data)
         return credits_data
 
@@ -518,9 +508,6 @@ class CostManager(BaseManager):
                     else:
                         aggregate_data["Saved Cost"] = 0.0
 
-                    if exchange_rate := result.get("exchange_rate"):
-                        additional_info["Exchange Rate"] = exchange_rate
-
             else:
                 aggregate_data["Actual Cost"] = cost_in_billing_currency
 
@@ -535,35 +522,38 @@ class CostManager(BaseManager):
         quantity = self._convert_str_to_float_format(result.get("quantity", 0.0))
 
         if not self.retail_price_map.get(f"{meter_id}:{product_id}"):
-            unit_price = self._get_unit_price_from_meter_id(meter_id, product_id)
+            unit_price = self._get_unit_price_from_meter_id(
+                meter_id, product_id, currency
+            )
             self.retail_price_map[f"{meter_id}:{product_id}"] = unit_price
 
         unit_price = self.retail_price_map[f"{meter_id}:{product_id}"]
 
-        if currency != "USD" and quantity > 0:
-            cost_in_billing_currency = self._convert_str_to_float_format(
-                result.get("costinbillingcurrency", 0.0)
-            )
-            cost_in_pricing_currency = self._convert_str_to_float_format(
-                result.get("costinpricingcurrency", 0.0)
-            )
+        # if currency != "USD" and quantity > 0:
+        #     cost_in_billing_currency = self._convert_str_to_float_format(
+        #         result.get("costinbillingcurrency", 0.0)
+        #     )
+        #     cost_in_pricing_currency = self._convert_str_to_float_format(
+        #         result.get("costinpricingcurrency", 0.0)
+        #     )
 
-            if cost_in_pricing_currency == 0 or cost_in_billing_currency == 0:
-                exchange_rate = 0
-            else:
-                exchange_rate = cost_in_billing_currency / cost_in_pricing_currency
+        # if cost_in_pricing_currency == 0 or cost_in_billing_currency == 0:
+        #     exchange_rate = 0
+        # else:
+        #     exchange_rate = cost_in_billing_currency / cost_in_pricing_currency
 
         retail_cost = exchange_rate * quantity * unit_price
         if retail_cost:
             saved_cost = retail_cost - cost
-            result["exchange_rate"] = exchange_rate
 
         return saved_cost
 
-    def _get_unit_price_from_meter_id(self, meter_id: str, product_id: str) -> float:
+    def _get_unit_price_from_meter_id(
+            self, meter_id: str, product_id: str, currency: str = None
+    ) -> float:
         unit_price = 0.0
         try:
-            response = self.azure_cm_connector.get_retail_price(meter_id)
+            response = self.azure_cm_connector.get_retail_price(meter_id, currency)
             items = response.get("Items", [])
 
             for item in items:
@@ -830,6 +820,13 @@ class CostManager(BaseManager):
             if meter_name == "Standard Data Transfer In":
                 additional_info["Usage Type Details"] = "Transfer In"
             elif meter_name == "Standard Data Transfer Out":
+                additional_info["Usage Type Details"] = "Transfer Out"
+            else:
+                additional_info["Usage Type Details"] = "Transfer Etc"
+        elif "Data Transfer" in meter_name:
+            if "Data Transfer In" in meter_name:
+                additional_info["Usage Type Details"] = "Transfer In"
+            elif "Data Transfer Out" in meter_name:
                 additional_info["Usage Type Details"] = "Transfer Out"
             else:
                 additional_info["Usage Type Details"] = "Transfer Etc"

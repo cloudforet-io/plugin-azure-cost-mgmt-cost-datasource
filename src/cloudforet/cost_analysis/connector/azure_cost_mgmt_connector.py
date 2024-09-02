@@ -212,8 +212,8 @@ class AzureCostMgmtConnector(BaseConnector):
         )
 
     @staticmethod
-    def get_retail_price(meter_id: str):
-        url = f"https://prices.azure.com/api/retail/prices?$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
+    def get_retail_price(meter_id: str, currency: str = "USD"):
+        url = f"https://prices.azure.com/api/retail/prices?currencyCode={currency}&$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
         try:
             response = requests.get(url=url)
             return response.json()
