@@ -795,8 +795,8 @@ class CostManager(BaseManager):
     def _set_network_traffic_cost(
             additional_info: dict, result: dict, usage_type: str
     ) -> dict:
-        meter_category = result.get("metercategory", "")
-        meter_name = result.get("metername", "")
+        meter_category = result.get("metercategory", "") or ""
+        meter_name = result.get("metername", "") or ""
         result_additional_info = result.get("additional_info", {}) or {}
         data_transfer_direction = result_additional_info.get("DataTransferDirection")
 
