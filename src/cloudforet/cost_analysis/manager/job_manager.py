@@ -36,7 +36,11 @@ class JobManager(BaseManager):
 
         if secret_type == "MANUAL":
             billing_account_info = self.azure_cm_connector.get_billing_account()
-            billing_account_agreement_type = billing_account_info.get("agreement_type")
+            billing_account_agreement_type = (
+                self.azure_cm_connector.get_agreement_type_from_billing_account_info(
+                    billing_account_info
+                )
+            )
 
             if billing_account_agreement_type == "MicrosoftPartnerAgreement":
                 tasks = []
