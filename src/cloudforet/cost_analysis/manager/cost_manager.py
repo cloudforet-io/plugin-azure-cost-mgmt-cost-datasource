@@ -34,7 +34,11 @@ class CostManager(BaseManager):
     ) -> list:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         billing_account_info = self.azure_cm_connector.get_billing_account()
-        agreement_type = billing_account_info.get("agreement_type")
+        agreement_type = (
+            self.azure_cm_connector.get_agreement_type_from_billing_account_info(
+                billing_account_info
+            )
+        )
         accounts_info = []
 
         if agreement_type == "MicrosoftPartnerAgreement":

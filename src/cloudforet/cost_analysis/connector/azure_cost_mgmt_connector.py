@@ -187,6 +187,16 @@ class AzureCostMgmtConnector(BaseConnector):
         billing_account_info = self.convert_nested_dictionary(billing_account_info)
         return billing_account_info
 
+    @staticmethod
+    def get_agreement_type_from_billing_account_info(
+        billing_account_info: dict,
+    ) -> Union[str, None]:
+        billing_account_properties_info = billing_account_info.get("properties")
+        billing_account_agreement_type = billing_account_properties_info.get(
+            "agreement_type", None
+        )
+        return billing_account_agreement_type
+
     @azure_exception_handler
     def begin_create_operation(self, scope: str, parameters: dict) -> list:
         content_type = "application/json"
