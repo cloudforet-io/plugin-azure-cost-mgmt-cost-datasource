@@ -1,3 +1,4 @@
+import copy
 import logging
 
 from spaceone.core.error import ERROR_INVALID_ARGUMENT
@@ -117,7 +118,7 @@ class DataSourceManager(BaseManager):
             "include_credit_cost": False,
             "cost_info": {},
             "data_info": {},
-            "additional_info": _DEFAULT_METADATA_ADDITIONAL_INFO,
+            "additional_info": copy.deepcopy(_DEFAULT_METADATA_ADDITIONAL_INFO),
         }
 
         _check_options(options)
