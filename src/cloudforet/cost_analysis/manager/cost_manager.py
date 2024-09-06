@@ -49,6 +49,7 @@ class CostManager(BaseManager):
             accounts_info = self._make_accounts_info_from_customer_tenants(
                 billing_accounts_info, customer_tenants
             )
+
         elif agreement_type == "EnterpriseAgreement":
             pass
         elif agreement_type == "MicrosoftCustomerAgreement":

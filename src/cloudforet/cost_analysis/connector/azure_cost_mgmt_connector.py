@@ -107,10 +107,12 @@ class AzureCostMgmtConnector(BaseConnector):
             billing_account_name=self.billing_account_id
         )
         for billing_account in billing_accounts:
+            billing_account_info = self.convert_nested_dictionary(billing_account)
+            billing_account_properties_info = billing_account_info.get("properties", {})
             billing_accounts_info.append(
                 {
-                    "display_name": billing_account.display_name,
-                    "customer_id": billing_account.name,
+                    "display_name": billing_account_properties_info.get("display_name"),
+                    "customer_id": billing_account_info.get("name"),
                 }
             )
 
