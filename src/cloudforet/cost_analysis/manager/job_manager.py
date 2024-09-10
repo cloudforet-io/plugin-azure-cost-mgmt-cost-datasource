@@ -192,7 +192,9 @@ class JobManager(BaseManager):
 
     def _get_tenants_from_billing_account(self):
         tenants = []
-        for billing_account in self.azure_cm_connector.list_billing_accounts():
+        for (
+            billing_account
+        ) in self.azure_cm_connector.list_customers_by_billing_account():
             tenants.append(billing_account["customer_id"])
         return tenants
 
