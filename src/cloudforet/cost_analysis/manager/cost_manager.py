@@ -42,7 +42,9 @@ class CostManager(BaseManager):
         accounts_info = []
 
         if agreement_type == "MicrosoftPartnerAgreement":
-            billing_accounts_info = self.azure_cm_connector.list_billing_accounts()
+            billing_accounts_info = (
+                self.azure_cm_connector.list_customers_by_billing_account()
+            )
             customer_tenants = self._get_linked_customer_tenants(
                 secret_data, billing_accounts_info
             )

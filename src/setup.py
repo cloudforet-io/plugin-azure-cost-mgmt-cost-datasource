@@ -16,27 +16,27 @@
 
 from setuptools import setup, find_packages
 
-with open('VERSION', 'r') as f:
+with open("VERSION", "r") as f:
     VERSION = f.read().strip()
     f.close()
 
 setup(
-    name='plugin-azure-cost-mgmt-cost-datasource',
+    name="plugin-azure-cost-mgmt-cost-datasource",
     version=VERSION,
-    description='Data source plugin for Azure Cost Management',
-    long_description='',
-    url='https://cloudforet.io/',
-    author='Cloudforet Admin',
-    author_email='admin@cloudforet.io',
-    license='Apache License 2.0',
+    description="Data source plugin for Azure Cost Management",
+    long_description="",
+    url="https://cloudforet.io/",
+    author="Cloudforet Admin",
+    author_email="admin@cloudforet.io",
+    license="Apache License 2.0",
     packages=find_packages(),
     install_requires=[
-        'spaceone-api',
-        'schematics',
-        'azure-identity',
-        'azure-mgmt-billing',
-        'azure-mgmt-costmanagement',
-        'pandas'
+        "spaceone-api",
+        "python-dateutil",
+        "azure-identity",
+        "azure-mgmt-billing",
+        "azure-mgmt-costmanagement",
+        "pandas",
     ],
     zip_safe=False,
 )

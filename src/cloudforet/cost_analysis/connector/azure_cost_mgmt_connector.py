@@ -100,7 +100,7 @@ class AzureCostMgmtConnector(BaseConnector):
             credential=credential, subscription_id=subscription_id
         )
 
-    def list_billing_accounts(self) -> list:
+    def list_customers_by_billing_account(self) -> list:
         billing_accounts_info = []
 
         billing_accounts = self.billing_client.customers.list_by_billing_account(
@@ -183,8 +183,9 @@ class AzureCostMgmtConnector(BaseConnector):
 
     def get_billing_account(self) -> dict:
         billing_account_name = self.billing_account_id
+        # todo : remove api_version
         billing_account_info = self.billing_client.billing_accounts.get(
-            billing_account_name=billing_account_name
+            billing_account_name=billing_account_name, api_version="2020-05-01"
         )
         billing_account_info = self.convert_nested_dictionary(billing_account_info)
         return billing_account_info
