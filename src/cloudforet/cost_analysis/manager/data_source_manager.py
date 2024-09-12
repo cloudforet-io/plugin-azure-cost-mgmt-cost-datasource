@@ -54,6 +54,7 @@ _DEFAULT_METADATA_ADDITIONAL_INFO = {
     "Meter Id": {"name": "Meter Id", "visible": False},
     "Meter Name": {"name": "Meter Name", "visible": False},
     "Meter SubCategory": {"name": "Meter SubCategory", "visible": False},
+    "Product Name": {"name": "Product Name", "visible": True},
     "PayG Unit Price": {"name": "PayG Unit Price", "visible": False},
     "Reservation Id": {"name": "Reservation Id", "visible": False},
     "Reservation Name": {"name": "Reservation Name", "visible": False},
