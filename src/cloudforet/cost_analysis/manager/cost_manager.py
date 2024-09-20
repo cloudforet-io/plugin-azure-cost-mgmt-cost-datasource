@@ -197,9 +197,7 @@ class CostManager(BaseManager):
         product: str = self._get_product_from_result(result)
         tags: dict = self._convert_tags_str_to_dict(result.get("tags"))
 
-        aggregate_data, additional_info = self._get_aggregate_data(
-            result, options, additional_info
-        )
+        aggregate_data = self._get_aggregate_data(result, options)
 
         # Set Network Traffic Cost at Additional Info
         additional_info: dict = self._set_network_traffic_cost(
@@ -410,8 +408,6 @@ class CostManager(BaseManager):
 
     def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
         additional_info = {
-            "Tenant Id": result.get("CustomerTenantId"),
-            "Customer Name": result.get("CustomerName"),
             "Pricing Model": result.get("PricingModel"),
             "Frequency": result.get("BillingFrequency"),
             "Benefit Id": result.get("BenefitId"),
@@ -420,6 +416,26 @@ class CostManager(BaseManager):
             "Reservation Name": result.get("ReservationName"),
             "Charge Type": result.get("ChargeType"),
         }
+
+        if result.get("SubscriptionId"):
+            additional_info["Subscription Id"] = result.get("SubscriptionId")
+
+        if result.get("CustomerName"):
+            additional_info["Customer Name"] = result.get("CustomerName")
+
+        if result.get("CustomerTenantId"):
+            additional_info["Tenant Id"] = result.get("CustomerTenantId")
+        elif result.get("TenantId"):
+            additional_info["Tenant Id"] = result.get("TenantId")
+
+        if result.get("DepartmentName"):
+            additional_info["Department Name"] = result.get("DepartmentName")
+
+        if result.get("EnrollmentAccountName"):
+            additional_info["Enrollment Account Name"] = result.get(
+                "EnrollmentAccountName"
+            )
+
         usage_quantity = self._convert_str_to_float_format(
             result.get("UsageQuantity", 0.0)
         )
@@ -464,10 +480,6 @@ class CostManager(BaseManager):
         return credits_data
 
     def _get_cost_from_result_with_options(self, result: dict, options: dict) -> float:
-        cost = self.get_pay_as_you_go_cost(result)
-        return cost
-
-    def get_pay_as_you_go_cost(self, result: dict) -> float:
         if "paygcostinbillingcurrency" in result:
             cost_pay_as_you_go = result.get("paygcostinbillingcurrency", 0.0)
         elif "paygprice" in result:
@@ -482,11 +494,19 @@ class CostManager(BaseManager):
         else:
             cost_pay_as_you_go = 0.0
 
+        if options.get("include_reservation_cost_at_payg", False):
+            pricing_model = result.get("pricingmodel")
+            charge_type = result.get("chargetype")
+
+            if (
+                pricing_model in ["Reservation", "SavingsPlan"]
+                and charge_type == "Purchase"
+            ):
+                cost_pay_as_you_go = result.get("costinbillingcurrency", 0.0)
+
         return cost_pay_as_you_go
 
-    def _get_aggregate_data(
-        self, result: dict, options: dict, additional_info: dict
-    ) -> Tuple[dict, dict]:
+    def _get_aggregate_data(self, result: dict, options: dict) -> dict:
         aggregate_data = {}
 
         if not options.get("pay_as_you_go", False):
@@ -518,7 +538,7 @@ class CostManager(BaseManager):
             else:
                 aggregate_data["Actual Cost"] = cost_in_billing_currency
 
-        return aggregate_data, additional_info
+        return aggregate_data
 
     def _get_saved_cost(self, result: dict, cost: float) -> float:
         exchange_rate = 1.0

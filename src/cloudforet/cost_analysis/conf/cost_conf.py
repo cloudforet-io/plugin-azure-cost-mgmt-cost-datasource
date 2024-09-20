@@ -29,7 +29,8 @@ BENEFIT_FILTER = {
 }
 BENEFIT_GROUPING = [
     {"type": "Dimension", "name": "PricingModel"},
-    {"type": "Dimension", "name": "Frequency"},
+    {"type": "Dimension", "name": "SubscriptionId"},
+    {"type": "Dimension", "name": "SubscriptionName"},
     {"type": "Dimension", "name": "BenefitId"},
     {"type": "Dimension", "name": "BenefitName"},
     {"type": "Dimension", "name": "ReservationId"},

@@ -90,6 +90,7 @@ class DataSourceManager(BaseManager):
                     "use_account_routing(bool)": False,
                     "exclude_license_cost(bool)": False,
                     "include_credit_cost(bool)": False,
+                    "include_reservation_cost_at_payg(bool)": False,
                     "cost_info(dict)": {
                         "name" :"PayAsYouGo",
                         "unit" :"KRW"
@@ -117,6 +118,7 @@ class DataSourceManager(BaseManager):
             "use_account_routing": False,
             "exclude_license_cost": False,
             "include_credit_cost": False,
+            "include_reservation_cost_at_payg": False,
             "cost_info": {},
             "data_info": {},
             "additional_info": copy.deepcopy(_DEFAULT_METADATA_ADDITIONAL_INFO),
@@ -160,6 +162,9 @@ class DataSourceManager(BaseManager):
         # Now only Support Enterprise Agreement
         if options.get("include_credit_cost"):
             plugin_metadata["include_credit_cost"] = True
+
+        if options.get("include_reservation_cost_at_payg"):
+            plugin_metadata["include_reservation_cost_at_payg"] = True
 
         return {"metadata": plugin_metadata}
 
