@@ -65,6 +65,7 @@ _DEFAULT_METADATA_ADDITIONAL_INFO = {
     "Billing Tenant Id": {"name": "Billing Tenant Id", "visible": True},
     "Adjustment Name": {"name": "Adjustment Name", "visible": False},
     "Product Id": {"name": "Product Id", "visible": False},
+    "RI Normalization Ratio": {"name": "RI Normalization Ratio", "visible": False},
 }
 
 _METADATA_INFO_ADDITIONAL_INFO_MPA = {
