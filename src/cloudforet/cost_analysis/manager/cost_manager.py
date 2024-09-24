@@ -332,6 +332,13 @@ class CostManager(BaseManager):
 
             additional_info["Term"] = term
 
+        if azure_additional_info := result.get("additionalinfo"):
+            azure_additional_info: dict = json.loads(azure_additional_info)
+            if ri_normalization_ratio := azure_additional_info.get(
+                "RINormalizationRatio"
+            ):
+                additional_info["RI Normalization Ratio"] = ri_normalization_ratio
+
         if options.get("cost_metric") == "AmortizedCost":
             if result.get("pricingmodel") in ["Reservation", "SavingsPlan"]:
                 meter_id = result.get("meterid")
@@ -658,18 +665,25 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _convert_tags_str_to_dict(tags_str: Union[str, None]) -> dict:
+        tags = {}
         try:
-            if tags_str is None:
-                return {}
+            if tags_str:
+                if tags_str[0] != "{" and tags_str[:-1] != "}":
+                    tags_str = "{" + tags_str + "}"
 
-            if tags_str[0] != "{" and tags_str[:-1] != "}":
-                tags_str = "{" + tags_str + "}"
+                # todo: temporary remove key value include "."
+                tags_info: dict = json.loads(tags_str)
 
-            tags = json.loads(tags_str)
+                for key in tags_info.keys():
+                    if "." not in key:
+                        tags[key] = tags_info[key]
+
             return tags
         except Exception as e:
-            _LOGGER.error(f"[_convert_tags_str_to_dict] tags : {tags_str} {e}")
-            return {}
+            _LOGGER.error(
+                f"[_convert_tags_str_to_dict] tags : {tags_str} {e}", exc_info=True
+            )
+            return tags
 
     @staticmethod
     def _set_product_from_benefit_name(benefit_name):
