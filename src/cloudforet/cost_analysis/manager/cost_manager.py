@@ -675,7 +675,7 @@ class CostManager(BaseManager):
                 tags_info: dict = json.loads(tags_str)
 
                 for key in tags_info.keys():
-                    if "." not in key:
+                    if len(key.split(".")) == 1:
                         tags[key] = tags_info[key]
 
             return tags
