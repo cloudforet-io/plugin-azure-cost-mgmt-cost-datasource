@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 
 from spaceone.core.manager import BaseManager
 from cloudforet.cost_analysis.conf.cost_conf import SECRET_TYPE_DEFAULT
+from cloudforet.cost_analysis.connector import AzureCostMgmtConnector
 from cloudforet.cost_analysis.error.cost import *
 
 _LOGGER = logging.getLogger("spaceone")
@@ -17,7 +18,7 @@ _TASK_LIST_SIZE = 5
 class JobManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.azure_cm_connector = self.locator.get_connector("AzureCostMgmtConnector")
+        self.azure_cm_connector: AzureCostMgmtConnector = AzureCostMgmtConnector()
 
     def get_tasks(
         self,
@@ -33,14 +34,14 @@ class JobManager(BaseManager):
 
         self.azure_cm_connector.create_session(options, secret_data, schema)
         secret_type = options.get("secret_type", SECRET_TYPE_DEFAULT)
+        billing_account_agreement_type = ""
 
         if secret_type == "MANUAL":
-            billing_account_info = self.azure_cm_connector.get_billing_account()
-            billing_account_agreement_type = (
-                self.azure_cm_connector.get_agreement_type_from_billing_account_info(
+            if not options.get("collect_scope") == "subscription_id":
+                billing_account_info = self.azure_cm_connector.get_billing_account()
+                billing_account_agreement_type = self.azure_cm_connector.get_agreement_type_from_billing_account_info(
                     billing_account_info
                 )
-            )
 
             if billing_account_agreement_type == "MicrosoftPartnerAgreement":
                 tasks = []
@@ -67,17 +68,15 @@ class JobManager(BaseManager):
                             start + relativedelta(months=month + month_range_step - 1),
                             "%Y-%m",
                         )
-                        tasks.append(
-                            {
-                                "task_options": {
-                                    "start": task_start_month,
-                                    "end": task_end_month,
-                                    "account_agreement_type": billing_account_agreement_type,
-                                    "collect_scope": "billing_account_id",
-                                    "billing_tenant_id": secret_data["tenant_id"],
-                                }
-                            }
+                        task = self._get_task_scope_billing_account_id(
+                            secret_data,
+                            billing_account_agreement_type,
+                            options,
+                            task_start_month,
+                            task_end_month,
                         )
+                        tasks.append(task)
+
                     if linked_accounts:
                         synced_accounts = linked_accounts
                     changed.append({"start": start_month})
@@ -137,7 +136,7 @@ class JobManager(BaseManager):
                             synced_accounts = self._extend_synced_accounts(
                                 synced_accounts, first_sync_tenants
                             )
-            else:
+            elif billing_account_agreement_type == "EnterpriseAgreement":
                 tasks = [
                     {
                         "task_options": {
@@ -151,6 +150,22 @@ class JobManager(BaseManager):
                         }
                     }
                 ]
+                changed = [{"start": start_month}]
+                synced_accounts = []
+            elif billing_account_agreement_type == "MicrosoftCustomerAgreement":
+                task = self._get_task_scope_billing_account_id(
+                    secret_data, billing_account_agreement_type, options, start_month
+                )
+
+                tasks = [task]
+                changed = [{"start": start_month}]
+                synced_accounts = []
+            else:
+                task = self._get_task_scope_subscription(
+                    secret_data, options, start_month
+                )
+
+                tasks = [task]
                 changed = [{"start": start_month}]
                 synced_accounts = []
 
@@ -169,18 +184,9 @@ class JobManager(BaseManager):
                 )
 
         elif secret_type == "USE_SERVICE_ACCOUNT_SECRET":
-            subscription_id = secret_data.get("subscription_id", "")
-            tenant_id = secret_data.get("tenant_id")
-            tasks = [
-                {
-                    "task_options": {
-                        "collect_scope": "subscription_id",
-                        "start": start_month,
-                        "subscription_id": subscription_id,
-                        "billing_tenant_id": tenant_id,
-                    }
-                }
-            ]
+            task = self._get_task_scope_subscription(secret_data, options, start_month)
+
+            tasks = [task]
             changed = [{"start": start_month}]
             synced_accounts = []
 
@@ -189,6 +195,45 @@ class JobManager(BaseManager):
 
         tasks = {"tasks": tasks, "changed": changed, "synced_accounts": synced_accounts}
         return tasks
+
+    @staticmethod
+    def _get_task_scope_billing_account_id(
+        secret_data: dict,
+        billing_account_agreement_type: str,
+        options: dict,
+        start_month: str,
+        end_month: str = None,
+    ) -> dict:
+        task_options = {
+            "start": start_month,
+            "account_agreement_type": billing_account_agreement_type,
+            "collect_scope": "billing_account_id",
+            "billing_tenant_id": secret_data["tenant_id"],
+        }
+
+        if end_month:
+            task_options["end"] = end_month
+
+        task = {"task_options": task_options}
+
+        return task
+
+    @staticmethod
+    def _get_task_scope_subscription(
+        secret_data: dict, options: dict, start_month: str
+    ) -> dict:
+        subscription_id = secret_data["subscription_id"]
+        tenant_id = secret_data.get("tenant_id")
+        task = {
+            "task_options": {
+                "collect_scope": "subscription_id",
+                "start": start_month,
+                "subscription_id": subscription_id,
+                "tenant_id": tenant_id,
+            }
+        }
+
+        return task
 
     def _get_tenants_from_billing_account(self):
         tenants = []
