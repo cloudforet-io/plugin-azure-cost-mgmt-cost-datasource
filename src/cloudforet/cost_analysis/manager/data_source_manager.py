@@ -116,6 +116,7 @@ class DataSourceManager(BaseManager):
             "data_source_rules": _DEFAULT_DATA_SOURCE_RULES,
             "supported_secret_types": ["MANUAL"],
             "currency": "KRW",
+            "collect_resource_id": True,
             "use_account_routing": False,
             "exclude_license_cost": False,
             "include_credit_cost": False,
