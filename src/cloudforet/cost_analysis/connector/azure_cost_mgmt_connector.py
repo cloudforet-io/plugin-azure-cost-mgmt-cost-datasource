@@ -377,11 +377,12 @@ class AzureCostMgmtConnector(BaseConnector):
             raise ERROR_INVALID_TOKEN(token=e)
 
     @staticmethod
-    def _check_secret_data(secret_data):
+    def _check_secret_data(secret_data: dict):
         if (
             "billing_account_id" not in secret_data
             and "subscription_id" not in secret_data
         ):
+            _LOGGER.debug(secret_data)
             raise ERROR_REQUIRED_PARAMETER(
                 key="secret_data.billing_account_id or secret_data.subscription_id"
             )
