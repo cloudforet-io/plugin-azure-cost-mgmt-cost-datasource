@@ -193,6 +193,9 @@ class JobManager(BaseManager):
         else:
             raise ERROR_INVALID_SECRET_TYPE(secret_type=options.get("secret_type"))
 
+        _LOGGER.debug(f"[get_tasks] tasks: {tasks}")
+        _LOGGER.debug(f"[get_tasks] changed: {changed}")
+        _LOGGER.debug(f"[get_tasks] synced_accounts: {synced_accounts}")
         tasks = {"tasks": tasks, "changed": changed, "synced_accounts": synced_accounts}
         return tasks
 
@@ -265,7 +268,7 @@ class JobManager(BaseManager):
         self, secret_data: dict, linked_accounts: list = None
     ) -> Tuple[list, list]:
         first_sync_customer_tenants = []
-        customer_tenants = secret_data.get(
+        customer_tenants: list = secret_data.get(
             "customer_tenants", self._get_tenants_from_billing_account()
         )
         if len(customer_tenants) == 0:

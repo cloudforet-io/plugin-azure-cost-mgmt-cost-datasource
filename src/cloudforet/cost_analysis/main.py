@@ -1,5 +1,7 @@
 import logging
 from typing import Generator
+
+from spaceone.core.error import ERROR_INVALID_PARAMETER_TYPE
 from spaceone.cost_analysis.plugin.data_source.lib.server import DataSourcePluginServer
 
 from .manager import CostManager, DataSourceManager, JobManager
@@ -185,6 +187,13 @@ def __remove_duplicate_list_of_dict(changed: list) -> list:
             seen.add(frozenset_changed_info)
             unique_list.append(changed_info)
     return unique_list
+
+
+def __check_secret_data(secret_data: dict):
+    customer_tenants = secret_data.get("customer_tenants", []) or []
+
+    if not isinstance(customer_tenants, list):
+        raise ERROR_INVALID_PARAMETER_TYPE(key="customer_tenants", type="list")
 
 
 def __get_secret_data(secret_data: dict, task_options: dict) -> dict:

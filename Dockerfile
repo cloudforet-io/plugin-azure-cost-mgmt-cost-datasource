@@ -1,10 +1,10 @@
 FROM cloudforet/python-core:2
 
-ENV PYTHONUNBUFFERED 1
-ENV SPACEONE_PORT 50051
-ENV SERVER_TYPE grpc
-ENV PKG_DIR /tmp/pkg
-ENV SRC_DIR /tmp/src
+ENV PYTHONUNBUFFERED=1
+ENV SPACEONE_PORT=50051
+ENV SERVER_TYPE=grpc
+ENV PKG_DIR=/tmp/pkg
+ENV SRC_DIR=/tmp/src
 
 RUN apt update && apt upgrade -y
 
@@ -15,7 +15,7 @@ RUN pip install --upgrade pip && \
 
 ARG CACHEBUST=1
 RUN pip install --upgrade spaceone-api && \
-    pip install --upgrade --pre spaceone-cost-analysis==2.0.dev161
+    pip install --upgrade --pre spaceone-cost-analysis==2.0.dev207
 
 
 
@@ -27,4 +27,4 @@ RUN python3 setup.py install && \
 EXPOSE ${SPACEONE_PORT}
 
 ENTRYPOINT ["spaceone"]
-CMD ["run", "plugin-server", "cloudforet.cost_analysis"]
+CMD ["run", "plugin-server", "cloudforet.cost_analysis", "-w", "12"]

@@ -37,6 +37,7 @@ BENEFIT_GROUPING = [
     {"type": "Dimension", "name": "ReservationName"},
     {"type": "Dimension", "name": "ChargeType"},
     {"type": "Dimension", "name": "MeterCategory"},
+    {"type": "Dimension", "name": "ConsumedService"},
 ]
 
 BENEFIT_GROUPING_MPA = [
@@ -51,11 +52,6 @@ BENEFIT_GROUPING_EA = [
 
 BENEFIT_GROUPING_MCA = [
     {"type": "Dimension", "name": "TenantId"},
-]
-
-GROUPING_EA_AGREEMENT_OPTION = [
-    {"type": "Dimension", "name": "DepartmentName"},
-    {"type": "Dimension", "name": "EnrollmentAccountName"},
 ]
 
 REGION_MAP = {
