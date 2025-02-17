@@ -3,7 +3,7 @@ import logging
 import json
 import time
 import pandas as pd
-from typing import Union, Tuple
+from typing import Union, Tuple, Any, Generator
 from datetime import datetime, timezone
 
 from spaceone.core.error import *
@@ -321,6 +321,9 @@ class CostManager(BaseManager):
         if result.get("metername") != "" and result.get("metername"):
             additional_info["Meter Name"] = result["metername"]
 
+        if result.get("consumedservice") != "" and result.get("consumedservice"):
+            additional_info["Consumed Service"] = result["consumedservice"]
+
         if result.get("term") != "" and result.get("term"):
             term = result.get("term")
             if isinstance(term, str):
@@ -424,24 +427,28 @@ class CostManager(BaseManager):
             "Charge Type": result.get("ChargeType"),
         }
 
-        if result.get("SubscriptionId"):
-            additional_info["Subscription Id"] = result.get("SubscriptionId")
+        if subscription_id := result.get("SubscriptionId"):
+            additional_info["Subscription Id"] = subscription_id
 
-        if result.get("CustomerName"):
-            additional_info["Customer Name"] = result.get("CustomerName")
+        if customer_name := result.get("CustomerName"):
+            additional_info["Customer Name"] = customer_name
 
-        if result.get("CustomerTenantId"):
-            additional_info["Tenant Id"] = result.get("CustomerTenantId")
+        if customer_id := result.get("CustomerTenantId"):
+            additional_info["Tenant Id"] = customer_id
         elif result.get("TenantId"):
             additional_info["Tenant Id"] = result.get("TenantId")
 
-        if result.get("DepartmentName"):
-            additional_info["Department Name"] = result.get("DepartmentName")
+        if department_name := result.get("DepartmentName"):
+            additional_info["Department Name"] = department_name
 
-        if result.get("EnrollmentAccountName"):
-            additional_info["Enrollment Account Name"] = result.get(
-                "EnrollmentAccountName"
-            )
+        if enrollment_account_name := result.get("EnrollmentAccountName"):
+            additional_info["Enrollment Account Name"] = enrollment_account_name
+
+        if service_family := result.get("ServiceFamily"):
+            additional_info["Service Family"] = service_family
+
+        if consumed_service := result.get("ConsumedService"):
+            additional_info["Consumed Service"] = consumed_service
 
         usage_quantity = self._convert_str_to_float_format(
             result.get("UsageQuantity", 0.0)

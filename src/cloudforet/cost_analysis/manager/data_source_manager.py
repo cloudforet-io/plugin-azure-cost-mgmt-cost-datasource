@@ -59,6 +59,7 @@ _DEFAULT_METADATA_ADDITIONAL_INFO = {
     "Reservation Id": {"name": "Reservation Id", "visible": False},
     "Reservation Name": {"name": "Reservation Name", "visible": False},
     "Service Family": {"name": "Service Family", "visible": True},
+    "Consumed Service": {"name": "Consumed Service", "visible": True},
     "Term": {"name": "Term", "visible": False},
     "Usage Type Details": {"name": "Usage Type Details", "visible": True},
     "Exchange Rate": {"name": "Exchange Rate", "visible": False},

@@ -138,7 +138,6 @@ class AzureCostMgmtConnector(BaseConnector):
                 "dataset": {
                     "granularity": GRANULARITY,
                     "aggregation": AGGREGATION,
-                    "grouping": BENEFIT_GROUPING,
                     "filter": BENEFIT_FILTER,
                 },
             }
