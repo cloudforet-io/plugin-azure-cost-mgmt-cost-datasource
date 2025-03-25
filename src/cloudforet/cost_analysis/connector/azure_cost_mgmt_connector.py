@@ -5,10 +5,12 @@ import time
 import requests
 import pandas as pd
 import numpy as np
+import re
+
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
-from typing import get_type_hints, Union, Any
+from typing import get_type_hints, Union, Any, Generator
 
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
@@ -39,6 +41,12 @@ def azure_exception_handler(func):
         except HttpResponseError as error:
             if error.status_code in ["404", "412"]:
                 _print_error_log(error)
+            elif error.status_code == "429":
+                _LOGGER.error(f"(RateLimit Error) => {error.message}")
+
+                wait_time = _extract_wait_time_for_retry(error.message)
+                time.sleep(wait_time)
+                return func(*args, **kwargs)
             else:
                 _print_error_log(error)
             return _get_empty_value(return_type)
@@ -47,6 +55,17 @@ def azure_exception_handler(func):
             raise e
 
     return wrapper
+
+
+def _extract_wait_time_for_retry(message: str) -> int:
+    default_wait_time = 60
+    pattern = r"\d+"
+
+    matches = re.findall(pattern, message)
+
+    if len(matches) > 1:
+        default_wait_time = int(matches[1])
+    return default_wait_time
 
 
 def _get_empty_value(return_type: object) -> Any:
@@ -248,7 +267,7 @@ class AzureCostMgmtConnector(BaseConnector):
             credit_info = {}
         return credit_info
 
-    def get_cost_data(self, blobs: list, options: dict) -> list:
+    def get_cost_data(self, blobs: list, options: dict) -> Generator[Any, Any, None]:
         _LOGGER.debug(f"[get_cost_data] options: {options}")
         total_cost_count = 0
         for blob in blobs:
