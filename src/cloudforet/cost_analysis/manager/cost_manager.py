@@ -104,6 +104,13 @@ class CostManager(BaseManager):
                     scope, parameters
                 )
 
+                if not blobs:
+                    _LOGGER.debug(f"[get_data] blobs: {blobs}")
+                    _LOGGER.info(
+                        f"[get_data] #{idx + 1} {tenant_id} tenant collect skipped, domain_id: {domain_id}"
+                    )
+                    continue
+
                 response_stream = self.azure_cm_connector.get_cost_data(blobs, options)
                 for results in response_stream:
                     yield self._make_cost_data(
