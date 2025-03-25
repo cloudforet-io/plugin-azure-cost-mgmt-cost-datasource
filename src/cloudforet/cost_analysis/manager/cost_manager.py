@@ -70,7 +70,7 @@ class CostManager(BaseManager):
         schema: str,
         task_options: dict,
         domain_id: str,
-    ) -> list:
+    ) -> Generator[list, Any, None]:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
@@ -132,7 +132,6 @@ class CostManager(BaseManager):
             _LOGGER.info(
                 f"[get_data] all collect is done in {int(end_time - start_time)} seconds"
             )
-        yield []
 
     def _make_cost_data(
         self,
