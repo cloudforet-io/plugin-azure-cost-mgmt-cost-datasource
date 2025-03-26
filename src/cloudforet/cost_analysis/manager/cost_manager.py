@@ -403,11 +403,14 @@ class CostManager(BaseManager):
         account_agreement_type: str = None,
     ) -> list:
         benefit_costs_data = []
+        total_count = 0
+
         try:
             combined_results = self._combine_rows_and_columns_from_results(
                 results.get("properties").get("rows"),
                 results.get("properties").get("columns"),
             )
+            total_count += len(combined_results)
             for cb_result in combined_results:
                 billed_at = self._set_billed_date(cb_result.get("UsageDate", end))
                 if not billed_at:
@@ -419,13 +422,13 @@ class CostManager(BaseManager):
         except Exception as e:
             _LOGGER.error(f"[_make_cost_data] make data error: {e}", exc_info=True)
             raise e
-
+        _LOGGER.info(f"[get_benefit_data] total count: {total_count}")
         return benefit_costs_data
 
     def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
+        print(result)
         additional_info = {
             "Pricing Model": result.get("PricingModel"),
-            "Frequency": result.get("BillingFrequency"),
             "Benefit Id": result.get("BenefitId"),
             "Benefit Name": result.get("BenefitName"),
             "Reservation Id": result.get("ReservationId"),
