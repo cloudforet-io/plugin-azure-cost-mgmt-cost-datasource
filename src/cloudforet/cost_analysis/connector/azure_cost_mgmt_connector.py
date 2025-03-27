@@ -173,11 +173,9 @@ class AzureCostMgmtConnector(BaseConnector):
                     BENEFIT_GROUPING + BENEFIT_GROUPING_MCA
                 )
 
-            _LOGGER.debug(f"[query_usage] parameters: {parameters}")
-
             while self.next_link:
                 url = self.next_link
-                headers = self._make_request_headers()
+                headers = self._make_request_headers(secret_data)
 
                 _LOGGER.debug(f"[query_usage] url:{url}, parameters: {parameters}")
                 response = requests.post(url=url, headers=headers, json=parameters)
@@ -316,8 +314,8 @@ class AzureCostMgmtConnector(BaseConnector):
 
         return cloud_svc_dict
 
-    def _make_request_headers(self, client_type=None):
-        access_token = self._get_access_token()
+    def _make_request_headers(self, secret_data: dict, client_type=None):
+        access_token = self._get_access_token(secret_data)
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
@@ -329,7 +327,7 @@ class AzureCostMgmtConnector(BaseConnector):
 
     def _retry_request(self, response, url, headers, json, retry_count, method="post"):
         try:
-            _LOGGER.error(f"{datetime.utcnow()}[INFO] retry_request {response.headers}")
+            _LOGGER.error(f"[INFO] retry_request {response.headers}")
             if retry_count == 0:
                 raise ERROR_UNKNOWN(
                     message=f"[ERROR] retry_request failed {response.json()}"
@@ -384,12 +382,26 @@ class AzureCostMgmtConnector(BaseConnector):
         return sleep_time + 1
 
     @staticmethod
-    def _get_access_token():
+    def _get_access_token(secret_data: dict) -> str:
         try:
-            credential = DefaultAzureCredential(logging_enable=True)
-            scopes = ["https://management.azure.com/.default"]
-            token_info = credential.get_token(*scopes)
-            return token_info.token
+            header = {
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
+            data = {
+                "client_id": secret_data["client_id"],
+                "client_secret": secret_data["client_secret"],
+                "grant_type": "client_credentials",
+                "resource": "https://management.azure.com",
+                "scope": "https://management.azure.com/.default",
+            }
+
+            response = requests.post(
+                f"https://login.microsoftonline.com/{secret_data['tenant_id']}/oauth2/token",
+                data=data,
+                headers=header,
+            )
+            access_token = response.json().get("access_token")
+            return access_token
         except Exception as e:
             _LOGGER.error(f"[ERROR] _get_access_token :{e}")
             raise ERROR_INVALID_TOKEN(token=e)
