@@ -342,7 +342,7 @@ class CostManager(BaseManager):
             additional_info["Term"] = term
 
         if azure_additional_info := result.get("additionalinfo"):
-            azure_additional_info: dict = json.loads(azure_additional_info)
+            azure_additional_info = json.loads(azure_additional_info)
             if ri_normalization_ratio := azure_additional_info.get(
                 "RINormalizationRatio"
             ):
@@ -426,7 +426,6 @@ class CostManager(BaseManager):
         return benefit_costs_data
 
     def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
-        print(result)
         additional_info = {
             "Pricing Model": result.get("PricingModel"),
             "Benefit Id": result.get("BenefitId"),
