@@ -16,7 +16,11 @@ from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.consumption import ConsumptionManagementClient
-from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
+from azure.core.exceptions import (
+    ResourceNotFoundError,
+    HttpResponseError,
+    ServiceResponseError,
+)
 from spaceone.core.connector import BaseConnector
 
 from cloudforet.cost_analysis.error.cost import *
@@ -26,7 +30,7 @@ __all__ = ["AzureCostMgmtConnector"]
 
 _LOGGER = logging.getLogger("spaceone")
 
-_PAGE_SIZE = 7000
+_PAGE_SIZE = 5000
 
 
 def azure_exception_handler(func):
@@ -35,6 +39,11 @@ def azure_exception_handler(func):
         return_type = get_type_hints(func).get("return")
         try:
             return func(*args, **kwargs)
+        except ServiceResponseError as error:
+            _print_error_log(error)
+            time.sleep(10)
+            return func(*args, **kwargs)
+
         except ResourceNotFoundError as error:
             _print_error_log(error)
             return _get_empty_value(return_type)
@@ -84,8 +93,9 @@ def _get_empty_value(return_type: object) -> Any:
     return empty_values.get(return_type_name, None)
 
 
-def _print_error_log(error):
-    _LOGGER.error(f"(Error) => {error.message} {error}", exc_info=True)
+def _print_error_log(error) -> None:
+    status_code = getattr(error, "status_code", "Unknown")
+    _LOGGER.error(f"(Error) => {status_code} {error.message} {error}", exc_info=True)
 
 
 class AzureCostMgmtConnector(BaseConnector):
