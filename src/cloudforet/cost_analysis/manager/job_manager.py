@@ -12,7 +12,7 @@ from cloudforet.cost_analysis.error.cost import *
 
 _LOGGER = logging.getLogger("spaceone")
 
-_TASK_LIST_SIZE = 5
+_TASK_LIST_SIZE = 4
 
 
 class JobManager(BaseManager):
