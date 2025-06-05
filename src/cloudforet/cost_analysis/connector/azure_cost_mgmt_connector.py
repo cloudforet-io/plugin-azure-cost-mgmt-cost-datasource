@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import tempfile
 import time
 from datetime import datetime
@@ -10,7 +11,11 @@ from typing import get_type_hints, Union, Any, Generator
 import numpy as np
 import pandas as pd
 import requests
-from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
+from azure.core.exceptions import (
+    ResourceNotFoundError,
+    HttpResponseError,
+    ServiceResponseError,
+)
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
 from azure.mgmt.consumption import ConsumptionManagementClient
