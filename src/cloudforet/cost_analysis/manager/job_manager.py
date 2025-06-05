@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from typing import Tuple, Union
 
 from dateutil.relativedelta import relativedelta
-
 from spaceone.core.manager import BaseManager
+
 from cloudforet.cost_analysis.conf.cost_conf import SECRET_TYPE_DEFAULT
 from cloudforet.cost_analysis.connector import AzureCostMgmtConnector
 from cloudforet.cost_analysis.error.cost import *
