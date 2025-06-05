@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
-from typing import get_type_hints, Union, Any
+from typing import get_type_hints, Union, Any, Generator
 
 import numpy as np
 import pandas as pd
@@ -249,7 +249,7 @@ class AzureCostMgmtConnector(BaseConnector):
             credit_info = {}
         return credit_info
 
-    def get_cost_data(self, blobs: list, options: dict) -> list:
+    def get_cost_data(self, blobs: list, options: dict) -> Generator[Any, Any, None]:
         _LOGGER.debug(f"[get_cost_data] options: {options}")
         total_cost_count = 0
         for blob in blobs:
