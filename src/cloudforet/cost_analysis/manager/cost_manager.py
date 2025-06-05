@@ -70,7 +70,7 @@ class CostManager(BaseManager):
         schema: str,
         task_options: dict,
         domain_id: str,
-    ) -> list:
+    ) -> Generator[list, Any, None]:
         self.azure_cm_connector.create_session(options, secret_data, schema)
         self._check_task_options(task_options)
 
@@ -104,6 +104,13 @@ class CostManager(BaseManager):
                     scope, parameters
                 )
 
+                if not blobs:
+                    _LOGGER.debug(f"[get_data] blobs: {blobs}")
+                    _LOGGER.info(
+                        f"[get_data] #{idx + 1} {tenant_id} tenant collect skipped, domain_id: {domain_id}"
+                    )
+                    continue
+
                 response_stream = self.azure_cm_connector.get_cost_data(blobs, options)
                 for results in response_stream:
                     yield self._make_cost_data(
@@ -132,7 +139,6 @@ class CostManager(BaseManager):
             _LOGGER.info(
                 f"[get_data] all collect is done in {int(end_time - start_time)} seconds"
             )
-        yield []
 
     def _make_cost_data(
         self,
@@ -336,7 +342,7 @@ class CostManager(BaseManager):
             additional_info["Term"] = term
 
         if azure_additional_info := result.get("additionalinfo"):
-            azure_additional_info: dict = json.loads(azure_additional_info)
+            azure_additional_info = json.loads(azure_additional_info)
             if ri_normalization_ratio := azure_additional_info.get(
                 "RINormalizationRatio"
             ):
@@ -397,11 +403,14 @@ class CostManager(BaseManager):
         account_agreement_type: str = None,
     ) -> list:
         benefit_costs_data = []
+        total_count = 0
+
         try:
             combined_results = self._combine_rows_and_columns_from_results(
                 results.get("properties").get("rows"),
                 results.get("properties").get("columns"),
             )
+            total_count += len(combined_results)
             for cb_result in combined_results:
                 billed_at = self._set_billed_date(cb_result.get("UsageDate", end))
                 if not billed_at:
@@ -413,13 +422,12 @@ class CostManager(BaseManager):
         except Exception as e:
             _LOGGER.error(f"[_make_cost_data] make data error: {e}", exc_info=True)
             raise e
-
+        _LOGGER.info(f"[get_benefit_data] total count: {total_count}")
         return benefit_costs_data
 
     def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
         additional_info = {
             "Pricing Model": result.get("PricingModel"),
-            "Frequency": result.get("BillingFrequency"),
             "Benefit Id": result.get("BenefitId"),
             "Benefit Name": result.get("BenefitName"),
             "Reservation Id": result.get("ReservationId"),
