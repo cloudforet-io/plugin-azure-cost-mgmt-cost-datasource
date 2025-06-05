@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
-from typing import get_type_hints, Union, Any
+from typing import get_type_hints, Union, Any, Generator
 
 import numpy as np
 import pandas as pd
