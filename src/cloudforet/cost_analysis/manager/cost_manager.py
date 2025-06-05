@@ -1,18 +1,18 @@
 import calendar
-import logging
 import json
+import logging
 import time
-import pandas as pd
-from typing import Union, Tuple, Any, Generator
 from datetime import datetime, timezone
+from typing import Union
 
+import pandas as pd
 from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 
+from cloudforet.cost_analysis.conf.cost_conf import *
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
     AzureCostMgmtConnector,
 )
-from cloudforet.cost_analysis.conf.cost_conf import *
 
 _LOGGER = logging.getLogger("spaceone")
 
@@ -454,6 +454,7 @@ class CostManager(BaseManager):
             result.get("UsageQuantity", 0.0)
         )
         actual_cost = self._convert_str_to_float_format(result.get("Cost", 0.0))
+
         data = {
             "cost": 0,
             "usage_quantity": usage_quantity,
@@ -466,6 +467,7 @@ class CostManager(BaseManager):
             },
             "additional_info": additional_info,
         }
+
         return data
 
     @staticmethod
@@ -509,14 +511,22 @@ class CostManager(BaseManager):
             cost_pay_as_you_go = 0.0
 
         if options.get("include_reservation_cost_at_payg", False):
-            pricing_model = result.get("pricingmodel")
-            charge_type = result.get("chargetype")
-
-            if (
-                pricing_model in ["Reservation", "SavingsPlan"]
-                and charge_type == "Purchase"
-            ):
-                cost_pay_as_you_go = result.get("costinbillingcurrency", 0.0)
+            if options.get("cost_metric") == "AmortizedCost":
+                pricing_model = result.get("pricingmodel")
+                charge_type = result.get("chargetype")
+                if (
+                    pricing_model in ["Reservation", "SavingsPlan"]
+                    and charge_type == "Usage"
+                ):
+                    cost_pay_as_you_go = self._get_retail_cost(result)
+            elif options.get("cost_metric") == "ActualCost":
+                pricing_model = result.get("pricingmodel")
+                charge_type = result.get("chargetype")
+                if (
+                    pricing_model in ["Reservation", "SavingsPlan"]
+                    and charge_type == "Purchase"
+                ):
+                    cost_pay_as_you_go = self._get_retail_cost(result)
 
         return cost_pay_as_you_go
 
@@ -554,12 +564,11 @@ class CostManager(BaseManager):
 
         return aggregate_data
 
-    def _get_saved_cost(self, result: dict, cost: float) -> float:
+    def _get_retail_cost(self, result: dict) -> float:
         exchange_rate = 1.0
-        saved_cost = 0
-        currency = result.get("billingcurrency", "USD")
         meter_id = result.get("meterid")
         product_id = result.get("productid")
+        currency = result.get("billingcurrency", "USD")
         quantity = self._convert_str_to_float_format(result.get("quantity", 0.0))
 
         if not self.retail_price_map.get(f"{meter_id}:{product_id}"):
@@ -569,6 +578,13 @@ class CostManager(BaseManager):
             self.retail_price_map[f"{meter_id}:{product_id}"] = unit_price
 
         unit_price = self.retail_price_map[f"{meter_id}:{product_id}"]
+
+        retail_cost = exchange_rate * quantity * unit_price
+
+        return retail_cost
+
+    def _get_saved_cost(self, result: dict, cost: float) -> float:
+        saved_cost = 0
 
         # if currency != "USD" and quantity > 0:
         #     cost_in_billing_currency = self._convert_str_to_float_format(
@@ -583,7 +599,7 @@ class CostManager(BaseManager):
         # else:
         #     exchange_rate = cost_in_billing_currency / cost_in_pricing_currency
 
-        retail_cost = exchange_rate * quantity * unit_price
+        retail_cost = self._get_retail_cost(result)
         if retail_cost:
             saved_cost = retail_cost - cost
 

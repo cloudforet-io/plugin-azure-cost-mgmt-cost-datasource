@@ -3,6 +3,7 @@ import logging
 
 from spaceone.core.error import ERROR_INVALID_ARGUMENT
 from spaceone.core.manager import BaseManager
+
 from cloudforet.cost_analysis.connector.azure_cost_mgmt_connector import (
     AzureCostMgmtConnector,
 )

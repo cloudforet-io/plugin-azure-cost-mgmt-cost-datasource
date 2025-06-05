@@ -2,23 +2,23 @@ import logging
 import os
 import tempfile
 import time
-import requests
-import pandas as pd
-import numpy as np
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
 from typing import get_type_hints, Union, Any
 
+import numpy as np
+import pandas as pd
+import requests
+from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.billing import BillingManagementClient
-from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.consumption import ConsumptionManagementClient
-from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
+from azure.mgmt.costmanagement import CostManagementClient
 from spaceone.core.connector import BaseConnector
 
-from cloudforet.cost_analysis.error.cost import *
 from cloudforet.cost_analysis.conf.cost_conf import *
+from cloudforet.cost_analysis.error.cost import *
 
 __all__ = ["AzureCostMgmtConnector"]
 
@@ -225,7 +225,8 @@ class AzureCostMgmtConnector(BaseConnector):
 
     @staticmethod
     def get_retail_price(meter_id: str, currency: str = "USD"):
-        url = f"https://prices.azure.com/api/retail/prices?currencyCode={currency}&$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
+        # url = f"https://prices.azure.com/api/retail/prices?currencyCode={currency}&$filter=priceType eq 'Consumption' and meterId eq '{meter_id}'"
+        url = f"https://prices.azure.com/api/retail/prices?currencyCode={currency}&$filter=meterId eq '{meter_id}'"
         try:
             response = requests.get(url=url)
             return response.json()
