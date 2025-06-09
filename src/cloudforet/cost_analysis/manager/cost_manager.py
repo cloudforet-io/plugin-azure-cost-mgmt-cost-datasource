@@ -527,14 +527,19 @@ class CostManager(BaseManager):
                     and charge_type == "Usage"
                 ):
                     cost_pay_as_you_go = self._get_retail_cost(result)
-            elif options.get("cost_metric") == "ActualCost":
-                pricing_model = result.get("pricingmodel")
-                charge_type = result.get("chargetype")
-                if (
-                    pricing_model in ["Reservation", "SavingsPlan"]
-                    and charge_type == "Purchase"
-                ):
-                    cost_pay_as_you_go = self._get_retail_cost(result)
+
+                    if cost_pay_as_you_go == 0.0:
+                        cost_pay_as_you_go = self._convert_str_to_float_format(
+                            result.get("costinbillingcurrency", 0.0)
+                        )
+            # elif options.get("cost_metric") == "ActualCost":
+            #     pricing_model = result.get("pricingmodel")
+            #     charge_type = result.get("chargetype")
+            #     if (
+            #         pricing_model in ["Reservation", "SavingsPlan"]
+            #         and charge_type == "Purchase"
+            #     ):
+            #         cost_pay_as_you_go = self._get_retail_cost(result)
 
         return cost_pay_as_you_go
 
