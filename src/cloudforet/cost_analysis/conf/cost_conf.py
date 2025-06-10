@@ -15,7 +15,7 @@ BENEFIT_FILTER = {
             "dimensions": {
                 "name": "ChargeType",
                 "operator": "In",
-                "values": ["Purchase"],
+                "values": ["Purchase", "Refund"],
             }
         },
         {

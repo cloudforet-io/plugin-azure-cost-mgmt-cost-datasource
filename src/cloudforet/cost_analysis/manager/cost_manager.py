@@ -416,7 +416,7 @@ class CostManager(BaseManager):
                 if not billed_at:
                     continue
 
-                data = self._make_benefit_cost_info(cb_result, billed_at)
+                data = self._make_benefit_cost_info(cb_result, options, billed_at)
                 benefit_costs_data.append(data)
 
         except Exception as e:
@@ -425,7 +425,11 @@ class CostManager(BaseManager):
         _LOGGER.info(f"[get_benefit_data] total count: {total_count}")
         return benefit_costs_data
 
-    def _make_benefit_cost_info(self, result: dict, billed_at: str) -> dict:
+    def _make_benefit_cost_info(
+        self, result: dict, options: dict, billed_at: str
+    ) -> dict:
+        cost = 0
+
         additional_info = {
             "Pricing Model": result.get("PricingModel"),
             "Benefit Id": result.get("BenefitId"),
@@ -463,8 +467,16 @@ class CostManager(BaseManager):
         )
         actual_cost = self._convert_str_to_float_format(result.get("Cost", 0.0))
 
+        # cost_metric = "AmortizedCost" and include_reservation_cost_at_payg = "ActualCost"
+        if options.get("include_reservation_cost_at_payg") == "ActualCost":
+            if options.get("show_reservation_cost_as_retail"):
+                # TODO: Add logic to show Actual Cost RI/SP as retail
+                pass
+            else:
+                cost = actual_cost
+
         data = {
-            "cost": 0,
+            "cost": cost,
             "usage_quantity": usage_quantity,
             "provider": "azure",
             "product": result.get("MeterCategory"),
@@ -518,28 +530,48 @@ class CostManager(BaseManager):
         else:
             cost_pay_as_you_go = 0.0
 
-        if options.get("include_reservation_cost_at_payg", False):
-            if options.get("cost_metric") == "AmortizedCost":
+        if options.get("cost_metric") == "AmortizedCost":
+            if options.get("include_reservation_cost_at_payg") == "AmortizedCost":
                 pricing_model = result.get("pricingmodel")
                 charge_type = result.get("chargetype")
+
                 if (
                     pricing_model in ["Reservation", "SavingsPlan"]
                     and charge_type == "Usage"
                 ):
-                    cost_pay_as_you_go = self._get_retail_cost(result)
-
-                    if cost_pay_as_you_go == 0.0:
+                    if options.get("show_reservation_cost_as_retail", False):
+                        cost_pay_as_you_go = self._get_retail_cost(result)
+                        # if cost_pay_as_you_go == 0.0:
+                        #     cost_pay_as_you_go = self._convert_str_to_float_format(
+                        #         result.get("costinbillingcurrency", 0.0)
+                        #     )
+                    else:
                         cost_pay_as_you_go = self._convert_str_to_float_format(
                             result.get("costinbillingcurrency", 0.0)
                         )
-            # elif options.get("cost_metric") == "ActualCost":
-            #     pricing_model = result.get("pricingmodel")
-            #     charge_type = result.get("chargetype")
-            #     if (
-            #         pricing_model in ["Reservation", "SavingsPlan"]
-            #         and charge_type == "Purchase"
-            #     ):
-            #         cost_pay_as_you_go = self._get_retail_cost(result)
+        elif options.get("cost_metric") == "ActualCost":
+            if options.get("include_reservation_cost_at_payg") == "ActualCost":
+                pricing_model = result.get("pricingmodel")
+                charge_type = result.get("chargetype")
+
+                if pricing_model in ["Reservation", "SavingsPlan"] and charge_type in [
+                    "Purchase",
+                    "Refund",
+                ]:
+                    if options.get("show_reservation_cost_as_retail", False):
+                        # TODO: Add logic to show Actual Cost RI/SP as retail
+                        # pricing_model = result.get("pricingmodel")
+                        # charge_type = result.get("chargetype")
+                        # if (
+                        #     pricing_model in ["Reservation", "SavingsPlan"]
+                        #     and charge_type in ["Purchase", "Refund"]
+                        # ):
+                        #     cost_pay_as_you_go = self._get_retail_cost(result)
+                        pass
+                    else:
+                        cost_pay_as_you_go = self._convert_str_to_float_format(
+                            result.get("costinbillingcurrency", 0.0)
+                        )
 
         return cost_pay_as_you_go
 
