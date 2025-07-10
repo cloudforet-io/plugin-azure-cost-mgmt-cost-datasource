@@ -202,10 +202,8 @@ def __get_secret_data(secret_data: dict, task_options: dict) -> dict:
     if len(secrets) == 1:
         return secrets[0]
 
-    billing_tenant_id = task_options["billing_tenant_id"]
-
     for _secret_data in secrets:
-        if _secret_data["tenant_id"] == billing_tenant_id:
+        if _secret_data["tenant_id"] == task_options.get("billing_tenant_id"):
             return _secret_data
 
         elif _secret_data.get("subscription_id") and _secret_data.get(
