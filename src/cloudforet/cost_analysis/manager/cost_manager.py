@@ -3,7 +3,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Union, Generator, Any
+from typing import Any, Generator, Union
 
 import pandas as pd
 from spaceone.core.error import *
@@ -193,7 +193,16 @@ class CostManager(BaseManager):
         if billing_tenant_id:
             additional_info["Billing Tenant Id"] = billing_tenant_id
 
-        cost: float = self._get_cost_from_result_with_options(result, options)
+        aggregate_data = self._get_aggregate_data(result, options)
+
+        if options.get("custom_cost_adjustment_percent"):
+            cost_adjustment_factor = (
+                1 + options.get("custom_cost_adjustment_percent") / 100
+            )
+            cost = aggregate_data["Actual Cost"] * cost_adjustment_factor
+        else:
+            cost: float = self._get_cost_from_result_with_options(result, options)
+
         usage_quantity: float = self._convert_str_to_float_format(
             result.get("quantity", 0.0)
         )
@@ -202,8 +211,6 @@ class CostManager(BaseManager):
         region_code: str = self._get_region_code(result.get("resourcelocation", ""))
         product: str = self._get_product_from_result(result)
         tags: dict = self._convert_tags_str_to_dict(result.get("tags"))
-
-        aggregate_data = self._get_aggregate_data(result, options)
 
         # Set Network Traffic Cost at Additional Info
         additional_info: dict = self._set_network_traffic_cost(
@@ -473,7 +480,13 @@ class CostManager(BaseManager):
                 # TODO: Add logic to show Actual Cost RI/SP as retail
                 pass
             else:
-                cost = actual_cost
+                if options.get("custom_cost_adjustment_percent"):
+                    cost_adjustment_factor = (
+                        1 + options.get("custom_cost_adjustment_percent") / 100
+                    )
+                    cost = actual_cost * cost_adjustment_factor
+                else:
+                    cost = actual_cost
 
         data = {
             "cost": cost,
