@@ -95,6 +95,7 @@ class DataSourceManager(BaseManager):
                     "include_credit_cost(bool)": False,
                     "include_reservation_cost_at_payg(str)": "ActualCost",
                     "show_reservation_cost_as_retail(bool): False,
+                    "custom_cost_adjustment_percent(float)": 15,
                     "cost_info(dict)": {
                         "name" :"PayAsYouGo",
                         "unit" :"KRW"
@@ -123,7 +124,9 @@ class DataSourceManager(BaseManager):
             "use_account_routing": False,
             "exclude_license_cost": False,
             "include_credit_cost": False,
-            "include_reservation_cost_at_payg": None,
+            # "include_reservation_cost_at_payg": None,
+            # "show_reservation_cost_as_retail": False,
+            # "custom_cost_adjustment_percent": 0.0,
             "cost_info": {},
             "data_info": {},
             "additional_info": copy.deepcopy(_DEFAULT_METADATA_ADDITIONAL_INFO),
@@ -175,6 +178,11 @@ class DataSourceManager(BaseManager):
 
         if options.get("show_reservation_cost_as_retail"):
             plugin_metadata["show_reservation_cost_as_retail"] = True
+
+        if options.get("custom_cost_adjustment_percent"):
+            plugin_metadata["custom_cost_adjustment_percent"] = options.get(
+                "custom_cost_adjustment_percent"
+            )
 
         return {"metadata": plugin_metadata}
 
