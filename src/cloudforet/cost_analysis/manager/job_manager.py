@@ -171,17 +171,41 @@ class JobManager(BaseManager):
 
             # Benefit Job Task
             if options.get("cost_metric") == "AmortizedCost":
-                tasks.append(
-                    {
-                        "task_options": {
-                            "start": start_month,
-                            "account_agreement_type": billing_account_agreement_type,
-                            "collect_scope": "billing_account_id",
-                            "billing_tenant_id": secret_data["tenant_id"],
-                            "is_benefit_job": True,
+                if (
+                    billing_account_agreement_type == "MicrosoftPartnerAgreement"
+                    and options.get("collect_scope") == "customer_tenant_id"
+                ):
+                    customer_tenants, first_sync_tenants = self._get_customer_tenants(
+                        secret_data, linked_accounts
+                    )
+                    divided_customer_tenants = self._get_divided_customer_tenants(
+                        customer_tenants
+                    )
+                    for divided_customer_tenant_info in divided_customer_tenants:
+                        tasks.append(
+                            {
+                                "task_options": {
+                                    "start": start_month,
+                                    "account_agreement_type": billing_account_agreement_type,
+                                    "collect_scope": "customer_tenant_id",
+                                    "customer_tenants": divided_customer_tenant_info,
+                                    "billing_tenant_id": secret_data["tenant_id"],
+                                    "is_benefit_job": True,
+                                }
+                            }
+                        )
+                else:
+                    tasks.append(
+                        {
+                            "task_options": {
+                                "start": start_month,
+                                "account_agreement_type": billing_account_agreement_type,
+                                "collect_scope": "billing_account_id",
+                                "billing_tenant_id": secret_data["tenant_id"],
+                                "is_benefit_job": True,
+                            }
                         }
-                    }
-                )
+                    )
 
         elif secret_type == "USE_SERVICE_ACCOUNT_SECRET":
             task = self._get_task_scope_subscription(secret_data, options, start_month)
