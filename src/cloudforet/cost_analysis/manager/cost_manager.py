@@ -381,6 +381,9 @@ class CostManager(BaseManager):
         domain_id: str,
     ):
         self.azure_cm_connector.create_session(options, secret_data, schema)
+
+        collect_scope: str = task_options["collect_scope"]
+        tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
         account_agreement_type = task_options.get("account_agreement_type")
         start: datetime = self._get_first_date_of_month(task_options["start"])
         end: datetime = datetime.utcnow()
@@ -390,16 +393,36 @@ class CostManager(BaseManager):
         for time_period in monthly_time_period:
             _start = time_period["start"]
             _end = time_period["end"]
-            response_stream = self.azure_cm_connector.query_usage_http(
-                secret_data, _start, _end, account_agreement_type
-            )
 
-            for results in response_stream:
-                yield self._make_benefit_cost_data(
-                    results=results,
-                    end=_end,
-                    options=options,
+            start_time = time.time()
+            _LOGGER.info(
+                f"[get_benefit_data] {tenant_ids} start to collect data from {_start} to {_end}"
+            )
+            for idx, tenant_id in enumerate(tenant_ids):
+                _LOGGER.info(
+                    f"[get_benefit_data] #{idx + 1} {tenant_id} tenant start to collect data from {_start} to {_end}, domain_id: {domain_id}"
                 )
+
+                response_stream = self.azure_cm_connector.query_usage_http(
+                    secret_data,
+                    _start,
+                    _end,
+                    collect_scope,
+                    account_agreement_type,
+                    tenant_id,
+                )
+
+                for results in response_stream:
+                    yield self._make_benefit_cost_data(
+                        results=results,
+                        end=_end,
+                        options=options,
+                    )
+
+            end_time = time.time()
+            _LOGGER.info(
+                f"[get_benefit_data] all collect is done in {int(end_time - start_time)} seconds"
+            )
 
     def _make_benefit_cost_data(
         self,

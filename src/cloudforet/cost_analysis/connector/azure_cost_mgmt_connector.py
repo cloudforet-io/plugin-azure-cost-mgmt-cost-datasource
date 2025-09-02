@@ -151,8 +151,9 @@ class AzureCostMgmtConnector(BaseConnector):
         secret_data: dict,
         start: datetime,
         end: datetime,
+        collect_scope: str,
         account_agreement_type: str,
-        options=None,
+        tenant_id: str,
     ):
         try:
             billing_account_id = secret_data["billing_account_id"]
@@ -173,6 +174,9 @@ class AzureCostMgmtConnector(BaseConnector):
                 parameters["dataset"]["grouping"] = (
                     BENEFIT_GROUPING + BENEFIT_GROUPING_MPA
                 )
+                if collect_scope == "customer_tenant_id":
+                    self.next_link = f"https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{tenant_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
+
             elif account_agreement_type == "EnterpriseAgreement":
                 parameters["dataset"]["grouping"] = (
                     BENEFIT_GROUPING + BENEFIT_GROUPING_EA
