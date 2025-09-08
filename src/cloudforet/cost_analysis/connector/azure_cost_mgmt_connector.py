@@ -156,10 +156,23 @@ class AzureCostMgmtConnector(BaseConnector):
         tenant_id: str,
     ):
         try:
-            billing_account_id = secret_data["billing_account_id"]
-            api_version = "2023-11-01"
-            self.next_link = f"https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
+            api_version = "2025-03-01"
 
+            # Set next_link for collect_scope
+            # if collect_scope == "subscription_id":
+            #     subscription_id = secret_data.get("subscription_id")
+            #     self.next_link = f"https://management.azure.com/subscriptions/{subscription_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
+            # else:
+            billing_account_id = secret_data.get("billing_account_id")
+            if (
+                account_agreement_type == "MicrosoftPartnerAgreement"
+                and collect_scope == "customer_tenant_id"
+            ):
+                self.next_link = f"https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{tenant_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
+            else:
+                self.next_link = f"https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
+
+            # Set parameters for the cost management query
             parameters = {
                 "type": TYPE,
                 "timeframe": TIMEFRAME,
@@ -170,21 +183,21 @@ class AzureCostMgmtConnector(BaseConnector):
                     "filter": BENEFIT_FILTER,
                 },
             }
+
             if account_agreement_type == "MicrosoftPartnerAgreement":
                 parameters["dataset"]["grouping"] = (
                     BENEFIT_GROUPING + BENEFIT_GROUPING_MPA
                 )
-                if collect_scope == "customer_tenant_id":
-                    self.next_link = f"https://management.azure.com/providers/Microsoft.Billing/billingAccounts/{billing_account_id}/customers/{tenant_id}/providers/Microsoft.CostManagement/query?api-version={api_version}"
-
             elif account_agreement_type == "EnterpriseAgreement":
                 parameters["dataset"]["grouping"] = (
                     BENEFIT_GROUPING + BENEFIT_GROUPING_EA
                 )
-            else:
+            elif account_agreement_type == "MicrosoftCustomerAgreement":
                 parameters["dataset"]["grouping"] = (
                     BENEFIT_GROUPING + BENEFIT_GROUPING_MCA
                 )
+            else:
+                parameters["dataset"]["grouping"] = BENEFIT_GROUPING
 
             while self.next_link:
                 url = self.next_link
