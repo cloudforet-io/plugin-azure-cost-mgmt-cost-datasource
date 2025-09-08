@@ -384,6 +384,7 @@ class CostManager(BaseManager):
 
         collect_scope: str = task_options["collect_scope"]
         tenant_ids: list = self._get_tenant_ids(task_options, collect_scope)
+        billing_tenant_id = task_options["billing_tenant_id"]
         account_agreement_type = task_options.get("account_agreement_type")
         start: datetime = self._get_first_date_of_month(task_options["start"])
         end: datetime = datetime.utcnow()
@@ -417,6 +418,7 @@ class CostManager(BaseManager):
                         results=results,
                         end=_end,
                         options=options,
+                        billing_tenant_id=billing_tenant_id,
                     )
 
             end_time = time.time()
@@ -429,7 +431,7 @@ class CostManager(BaseManager):
         results: dict,
         end: datetime,
         options: dict,
-        tenant_id: str = None,
+        billing_tenant_id: str = None,
         account_agreement_type: str = None,
     ) -> list:
         benefit_costs_data = []
@@ -446,7 +448,9 @@ class CostManager(BaseManager):
                 if not billed_at:
                     continue
 
-                data = self._make_benefit_cost_info(cb_result, options, billed_at)
+                data = self._make_benefit_cost_info(
+                    cb_result, options, billing_tenant_id, billed_at
+                )
                 benefit_costs_data.append(data)
 
         except Exception as e:
@@ -456,7 +460,7 @@ class CostManager(BaseManager):
         return benefit_costs_data
 
     def _make_benefit_cost_info(
-        self, result: dict, options: dict, billed_at: str
+        self, result: dict, options: dict, billing_tenant_id: str, billed_at: str
     ) -> dict:
         cost = 0
 
@@ -467,6 +471,7 @@ class CostManager(BaseManager):
             "Reservation Id": result.get("ReservationId"),
             "Reservation Name": result.get("ReservationName"),
             "Charge Type": result.get("ChargeType"),
+            "Billing Tenant Id": billing_tenant_id,
         }
 
         if subscription_id := result.get("SubscriptionId"):

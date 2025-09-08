@@ -194,6 +194,21 @@ class JobManager(BaseManager):
                                 }
                             }
                         )
+                elif options.get("collect_scope") == "subscription_id":
+                    pass
+                    # subscription_id = secret_data["subscription_id"]
+                    # tenant_id = secret_data.get("tenant_id")
+                    # tasks.append(
+                    #     {
+                    #         "task_options": {
+                    #             "collect_scope": "subscription_id",
+                    #             "start": start_month,
+                    #             "subscription_id": subscription_id,
+                    #             "tenant_id": tenant_id,
+                    #             "is_benefit_job": True,
+                    #         }
+                    #     }
+                    # )
                 else:
                     tasks.append(
                         {
