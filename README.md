@@ -60,7 +60,20 @@ https://login.microsoftonline.com
 
 ## Options
 
-Currently, not required.
+<pre>
+<code>
+{
+    "use_account_routing(bool)": False,
+    "collect_resource_id(bool)": False,
+    "exclude_license_cost(bool)": False,
+    "cost_metric(str)": "ActualCost" || "AmortizedCost",
+    "include_reservation_cost_at_payg(str)":
+        "ActualCost" || "AmortizedCost",
+    "show_reservation_cost_as_retail(bool)": False,
+    "custom_cost_adjustment_percent(float)": 25.5
+}
+</code>
+</pre>
 
 ---
 
