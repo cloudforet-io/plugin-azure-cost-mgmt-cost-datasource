@@ -21,7 +21,7 @@ with open("VERSION", "r") as f:
     f.close()
 
 setup(
-    name="plugin-azure-cost-mgmt-cost-datasource",
+    name="plugin_azure_cost_mgmt_cost_datasource",
     version=VERSION,
     description="Data source plugin for Azure Cost Management",
     long_description="",
